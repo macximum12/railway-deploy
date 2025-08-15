@@ -24,6 +24,38 @@
         </div>
     </div>
 
+    <!-- Quick Navigation Menu -->
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 animate-slide-up" style="animation-delay: 0.1s">
+        <div class="flex items-center justify-center">
+            <div class="flex flex-wrap gap-4 justify-center">
+                <a href="{{ url_for('index') }}" class="group flex items-center space-x-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                    <i class="fas fa-chart-line group-hover:scale-110 transition-transform duration-300"></i>
+                    <span class="font-medium">Dashboard</span>
+                </a>
+                <a href="{{ url_for('findings') }}" class="group flex items-center space-x-2 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                    <i class="fas fa-table group-hover:scale-110 transition-transform duration-300"></i>
+                    <span class="font-medium">All Findings</span>
+                </a>
+                <a href="{{ url_for('add_finding') }}" class="group flex items-center space-x-2 px-4 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                    <i class="fas fa-plus group-hover:rotate-90 transition-transform duration-300"></i>
+                    <span class="font-medium">Add Finding</span>
+                </a>
+                <a href="{{ url_for('import_findings') }}" class="group flex items-center space-x-2 px-4 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                    <i class="fas fa-upload group-hover:scale-110 transition-transform duration-300"></i>
+                    <span class="font-medium">Import</span>
+                </a>
+                <a href="{{ url_for('export_csv') }}" class="group flex items-center space-x-2 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                    <i class="fas fa-download group-hover:scale-110 transition-transform duration-300"></i>
+                    <span class="font-medium">Export</span>
+                </a>
+                <a href="{{ url_for('about') }}" class="group flex items-center space-x-2 px-4 py-3 rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 text-white hover:from-teal-600 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                    <i class="fas fa-info-circle group-hover:scale-110 transition-transform duration-300"></i>
+                    <span class="font-medium">About</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
     <!-- Summary Statistics -->
     <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 mb-6">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 mb-6">

@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}About - Audit and Assurance{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Header Section -->
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 animate-slide-up">
+        <div class="text-center">
+            <div class="bg-gradient-to-r from-blue-500 to-indigo-600 p-4 rounded-2xl w-16 h-16 mx-auto mb-6 shadow-lg">
+                <i class="fas fa-info-circle text-white text-2xl"></i>
+            </div>
+            <h2 class="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-4">
+                About Audit and Assurance System
+            </h2>
+            <p class="text-slate-600 text-xl max-w-3xl mx-auto">
+                A comprehensive audit findings management system designed to streamline audit processes and enhance organizational compliance.
+            </p>
+        </div>
+    </div>
+
+    <!-- Navigation Breadcrumb -->
+    <div class="flex items-center space-x-2 text-sm text-slate-600 mb-6">
+        <a href="{{ url_for('index') }}" class="hover:text-blue-600 transition-colors">
+            <i class="fas fa-home mr-1"></i>Dashboard
+        </a>
+        <i class="fas fa-chevron-right text-slate-400"></i>
+        <span class="text-slate-800 font-medium">About</span>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- System Overview -->
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 animate-slide-up">
+            <div class="flex items-center mb-6">
+                <div class="bg-gradient-to-r from-emerald-500 to-green-600 p-3 rounded-xl mr-4">
+                    <i class="fas fa-clipboard-check text-white text-xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-slate-800">System Overview</h3>
+            </div>
+            <div class="space-y-4 text-slate-600">
+                <p>
+                    The <strong>Audit and Assurance System</strong> is a modern web-based application designed to help organizations effectively manage their audit findings, track compliance status, and maintain comprehensive audit trails.
+                </p>
+                <p>
+                    Built with security and user experience in mind, this system provides a centralized platform for audit professionals to monitor, analyze, and report on audit findings across different departments and time periods.
+                </p>
+            </div>
+        </div>
+
+        <!-- Key Features -->
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 animate-slide-up" style="animation-delay: 0.1s">
+            <div class="flex items-center mb-6">
+                <div class="bg-gradient-to-r from-blue-500 to-indigo-600 p-3 rounded-xl mr-4">
+                    <i class="fas fa-star text-white text-xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-slate-800">Key Features</h3>
+            </div>
+            <div class="space-y-4">
+                <div class="flex items-start space-x-3">
+                    <i class="fas fa-check-circle text-green-500 mt-1"></i>
+                    <div>
+                        <h4 class="font-semibold text-slate-800">Comprehensive Audit Tracking</h4>
+                        <p class="text-slate-600 text-sm">Complete lifecycle management of audit findings from identification to closure.</p>
+                    </div>
+                </div>
+                <div class="flex items-start space-x-3">
+                    <i class="fas fa-check-circle text-green-500 mt-1"></i>
+                    <div>
+                        <h4 class="font-semibold text-slate-800">Interactive Analytics</h4>
+                        <p class="text-slate-600 text-sm">Real-time dashboards with year-over-year comparisons and detailed insights.</p>
+                    </div>
+                </div>
+                <div class="flex items-start space-x-3">
+                    <i class="fas fa-check-circle text-green-500 mt-1"></i>
+                    <div>
+                        <h4 class="font-semibold text-slate-800">Security & Access Control</h4>
+                        <p class="text-slate-600 text-sm">Role-based permissions with comprehensive activity logging and session management.</p>
+                    </div>
+                </div>
+                <div class="flex items-start space-x-3">
+                    <i class="fas fa-check-circle text-green-500 mt-1"></i>
+                    <div>
+                        <h4 class="font-semibold text-slate-800">Data Import/Export</h4>
+                        <p class="text-slate-600 text-sm">CSV import/export capabilities for seamless data management and reporting.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technical Information -->
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 animate-slide-up" style="animation-delay: 0.2s">
+        <div class="flex items-center mb-6">
+            <div class="bg-gradient-to-r from-purple-500 to-pink-600 p-3 rounded-xl mr-4">
+                <i class="fas fa-cogs text-white text-xl"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-slate-800">Technical Specifications</h3>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-server text-blue-600 mr-2"></i>
+                    <h4 class="font-semibold text-slate-800">Backend</h4>
+                </div>
+                <ul class="text-sm text-slate-600 space-y-1">
+                    <li>• Flask (Python Web Framework)</li>
+                    <li>• SQLite Database</li>
+                    <li>• RESTful API Design</li>
+                </ul>
+            </div>
+            <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-paint-brush text-green-600 mr-2"></i>
+                    <h4 class="font-semibold text-slate-800">Frontend</h4>
+                </div>
+                <ul class="text-sm text-slate-600 space-y-1">
+                    <li>• Tailwind CSS</li>
+                    <li>• Responsive Design</li>
+                    <li>• Interactive Charts</li>
+                </ul>
+            </div>
+            <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-shield-alt text-red-600 mr-2"></i>
+                    <h4 class="font-semibold text-slate-800">Security</h4>
+                </div>
+                <ul class="text-sm text-slate-600 space-y-1">
+                    <li>• Session Management</li>
+                    <li>• Rate Limiting</li>
+                    <li>• Activity Logging</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Roles -->
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 animate-slide-up" style="animation-delay: 0.3s">
+        <div class="flex items-center mb-6">
+            <div class="bg-gradient-to-r from-orange-500 to-red-600 p-3 rounded-xl mr-4">
+                <i class="fas fa-users text-white text-xl"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-slate-800">User Roles & Permissions</h3>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-gradient-to-br from-red-50 to-orange-50 border border-red-200 rounded-lg p-6">
+                <div class="text-center">
+                    <div class="bg-red-500 p-3 rounded-full w-12 h-12 mx-auto mb-4">
+                        <i class="fas fa-crown text-white"></i>
+                    </div>
+                    <h4 class="font-bold text-red-700 text-lg mb-2">Administrator</h4>
+                    <ul class="text-sm text-red-600 space-y-1 text-left">
+                        <li>• Full system access</li>
+                        <li>• User management</li>
+                        <li>• System configuration</li>
+                        <li>• All CRUD operations</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+                <div class="text-center">
+                    <div class="bg-blue-500 p-3 rounded-full w-12 h-12 mx-auto mb-4">
+                        <i class="fas fa-edit text-white"></i>
+                    </div>
+                    <h4 class="font-bold text-blue-700 text-lg mb-2">Editor</h4>
+                    <ul class="text-sm text-blue-600 space-y-1 text-left">
+                        <li>• Create/Edit findings</li>
+                        <li>• Import/Export data</li>
+                        <li>• View analytics</li>
+                        <li>• Activity logging</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-lg p-6">
+                <div class="text-center">
+                    <div class="bg-green-500 p-3 rounded-full w-12 h-12 mx-auto mb-4">
+                        <i class="fas fa-eye text-white"></i>
+                    </div>
+                    <h4 class="font-bold text-green-700 text-lg mb-2">Viewer</h4>
+                    <ul class="text-sm text-green-600 space-y-1 text-left">
+                        <li>• View-only access</li>
+                        <li>• Export capabilities</li>
+                        <li>• Dashboard access</li>
+                        <li>• Generate reports</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Information -->
+    <div class="bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-2xl shadow-xl p-8 animate-slide-up" style="animation-delay: 0.4s">
+        <div class="text-center">
+            <div class="bg-gradient-to-r from-blue-500 to-indigo-600 p-3 rounded-xl w-16 h-16 mx-auto mb-6">
+                <i class="fas fa-envelope text-white text-2xl"></i>
+            </div>
+            <h3 class="text-2xl font-bold mb-4">Need Support?</h3>
+            <p class="text-slate-300 mb-6 max-w-2xl mx-auto">
+                For technical support, feature requests, or system administration assistance, please contact your IT department or system administrator.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+                <div class="bg-slate-700/50 rounded-lg p-4">
+                    <i class="fas fa-book text-blue-400 mb-2"></i>
+                    <h4 class="font-semibold">Documentation</h4>
+                    <p class="text-sm text-slate-300">User guides and system documentation</p>
+                </div>
+                <div class="bg-slate-700/50 rounded-lg p-4">
+                    <i class="fas fa-life-ring text-green-400 mb-2"></i>
+                    <h4 class="font-semibold">Technical Support</h4>
+                    <p class="text-sm text-slate-300">System maintenance and troubleshooting</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 animate-slide-up" style="animation-delay: 0.5s">
+        <div class="text-center">
+            <h3 class="text-2xl font-bold text-slate-800 mb-6">Quick Actions</h3>
+            <div class="flex flex-wrap justify-center gap-4">
+                <a href="{{ url_for('index') }}" class="group bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center space-x-2">
+                    <i class="fas fa-chart-line group-hover:scale-110 transition-transform duration-300"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ url_for('findings') }}" class="group bg-gradient-to-r from-emerald-500 to-green-600 text-white px-6 py-3 rounded-xl hover:from-emerald-600 hover:to-green-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center space-x-2">
+                    <i class="fas fa-table group-hover:scale-110 transition-transform duration-300"></i>
+                    <span>All Findings</span>
+                </a>
+                <a href="{{ url_for('add_finding') }}" class="group bg-gradient-to-r from-purple-500 to-pink-600 text-white px-6 py-3 rounded-xl hover:from-purple-600 hover:to-pink-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center space-x-2">
+                    <i class="fas fa-plus group-hover:rotate-90 transition-transform duration-300"></i>
+                    <span>Add Finding</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

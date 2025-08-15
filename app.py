@@ -92,7 +92,7 @@ def get_delay_for_ip(ip_address):
 def record_failed_attempt(ip_address, username):
     """Record failed login attempt with progressive delays"""
     failed_attempts[ip_address] = failed_attempts.get(ip_address, 0) + 1
-    log_activity('LOGIN_FAILED', f'Failed login attempt #{failed_attempts[ip_address]} from {ip_address}', username)
+    log_activity('LOGIN_FAILED', f'Failed login attempt #{failed_attempts[ip_address]} from {ip_address} for user {username}')
     
 def reset_failed_attempts(ip_address):
     """Reset counter on successful login"""
@@ -451,7 +451,7 @@ def login():
         
         # Check for account lockout
         if is_account_locked(username):
-            log_activity('LOGIN_BLOCKED', f'Login blocked for locked account {username} from {client_ip}', username)
+            log_activity('LOGIN_BLOCKED', f'Login blocked for locked account {username} from {client_ip}')
             flash('Account temporarily locked due to multiple failed attempts. Please try again later.', 'error')
             return render_template('login.html', error='Account temporarily locked', current_year=datetime.now().year)
         
@@ -865,6 +865,13 @@ def index():
     ''').fetchall()
     conn.close()
     return render_template('index.html', findings=findings)
+
+@app.route('/about')
+@login_required
+def about():
+    """About page with application information"""
+    log_activity('VIEW_ABOUT', 'Accessed about page')
+    return render_template('about.html')
 
 @app.route('/findings')
 @login_required

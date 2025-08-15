@@ -60,6 +60,14 @@
                     <!-- User Info & Navigation -->
                     <div class="flex items-center space-x-4">
                         {% if not user_must_change_password %}
+                        <!-- About Button -->
+                        <a href="{{ url_for('about') }}" 
+                           class="flex items-center space-x-2 px-3 py-2 rounded-lg bg-indigo-600/20 border border-indigo-500/30 hover:bg-indigo-600/30 transition-all duration-200 text-indigo-300 hover:text-indigo-200"
+                           title="About this system">
+                            <i class="fas fa-info-circle"></i>
+                            <span class="text-sm font-medium hidden lg:block">About</span>
+                        </a>
+                        
                         <!-- Activity Logs Button -->
                         <a href="{{ url_for('activity_logs') }}" 
                            class="flex items-center space-x-2 px-3 py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 hover:bg-blue-600/30 transition-all duration-200 text-blue-300 hover:text-blue-200"
