@@ -5,11 +5,14 @@ import csv
 import io
 from functools import wraps
 import time
+import uuid
+import re
+import os
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-change-in-production'  # Change this in production!
+app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')  # Use env var in production
 app.permanent_session_lifetime = timedelta(minutes=5)  # Session expires in 5 minutes
 
 # Enhanced security configuration
@@ -28,7 +31,7 @@ limiter = Limiter(
 )
 
 # Brute force protection tracking
-failed_attempts = {}  # Track failed attempts per IP
+failed_attempts = {}  # Track failed attempts per IPz
 account_lockouts = {}  # Track account lockouts
 
 # Active sessions tracking (in production, use Redis or database)
@@ -1425,6 +1428,7 @@ if __name__ == '__main__':
     init_db()
     print("🚀 Starting Internal Audit Tracker...")
     print("📊 Database initialized successfully!")
-    print("🌐 Server running at: http://127.0.0.1:5000")
+    port = int(os.environ.get('PORT', 5000))
+    print(f"🌐 Server running on port {port}")
     print("Press CTRL+C to stop the server")
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=port)
