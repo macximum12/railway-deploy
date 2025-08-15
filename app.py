@@ -4,35 +4,10 @@ from datetime import datetime, timedelta
 import csv
 import io
 from functools import wraps
-import time
-import uuid
-import re
-import os
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')  # Use env var in production
+app.secret_key = 'your-secret-key-change-in-production'  # Change this in production!
 app.permanent_session_lifetime = timedelta(minutes=5)  # Session expires in 5 minutes
-
-# Enhanced security configuration
-app.config.update(
-    SESSION_COOKIE_HTTPONLY=True,    # Prevent JavaScript access
-    SESSION_COOKIE_SAMESITE='Lax',   # CSRF protection
-    PERMANENT_SESSION_LIFETIME=timedelta(minutes=5)  # 5-minute timeout
-)
-
-# Initialize rate limiter for brute force protection
-limiter = Limiter(
-    app=app,
-    key_func=get_remote_address,
-    default_limits=["1000 per hour"],  # General rate limit
-    storage_uri="memory://"  # Use Redis in production
-)
-
-# Brute force protection tracking
-failed_attempts = {}  # Track failed attempts per IPz
-account_lockouts = {}  # Track account lockouts
 
 # Active sessions tracking (in production, use Redis or database)
 ACTIVE_SESSIONS = {}
@@ -73,68 +48,6 @@ DEFAULT_ADMIN = {
     'username': 'admin',
     'password': 'admin'  # In production, use hashed passwords!
 }
-
-# Brute force protection functions
-def get_delay_for_ip(ip_address):
-    """Calculate progressive delay based on failed attempts"""
-    attempts = failed_attempts.get(ip_address, 0)
-    if attempts == 0:
-        return 0
-    elif attempts < 3:
-        return 1  # 1 second delay
-    elif attempts < 5:
-        return 2  # 2 second delay  
-    elif attempts < 8:
-        return 5  # 5 second delay
-    else:
-        return 10  # 10 second delay
-
-def record_failed_attempt(ip_address, username):
-    """Record failed login attempt with progressive delays"""
-    failed_attempts[ip_address] = failed_attempts.get(ip_address, 0) + 1
-    log_activity('LOGIN_FAILED', f'Failed login attempt #{failed_attempts[ip_address]} from {ip_address} for user {username}')
-    
-def reset_failed_attempts(ip_address):
-    """Reset counter on successful login"""
-    if ip_address in failed_attempts:
-        del failed_attempts[ip_address]
-
-def is_account_locked(username):
-    """Check if account is temporarily locked due to failed attempts"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Check recent failed attempts (last 15 minutes)
-    cursor.execute("""
-        SELECT COUNT(*) FROM activity_logs 
-        WHERE username = ? AND action = 'LOGIN_FAILED' 
-        AND timestamp > datetime('now', '-15 minutes')
-    """, (username,))
-    
-    result = cursor.fetchone()
-    failed_count = result[0] if result else 0
-    conn.close()
-    
-    return failed_count >= 5  # Lock after 5 failed attempts in 15 minutes
-
-def cleanup_old_attempts():
-    """Clean up old failed attempt records (run periodically)"""
-    cutoff_time = datetime.now() - timedelta(hours=1)
-    # Remove entries older than 1 hour
-    global failed_attempts
-    # In production, implement proper cleanup logic
-
-@app.after_request
-def set_security_headers(response):
-    """Add security headers to all responses"""
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'DENY' 
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    # Only add HSTS in production with HTTPS
-    if request.is_secure:
-        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
-    return response
 
 # Database setup
 def init_db():
@@ -441,34 +354,17 @@ def update_session_activity():
 
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("10 per minute")  # Rate limiting: max 10 attempts per minute
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         remember = request.form.get('remember')
-        client_ip = request.remote_addr
-        
-        # Check for account lockout
-        if is_account_locked(username):
-            log_activity('LOGIN_BLOCKED', f'Login blocked for locked account {username} from {client_ip}')
-            flash('Account temporarily locked due to multiple failed attempts. Please try again later.', 'error')
-            return render_template('login.html', error='Account temporarily locked', current_year=datetime.now().year)
-        
-        # Apply progressive delay for repeated failed attempts from same IP
-        delay = get_delay_for_ip(client_ip)
-        if delay > 0:
-            print(f"⏱️ Applying {delay}s delay for IP {client_ip} (attempt #{failed_attempts.get(client_ip, 0)})")
-            time.sleep(delay)
         
         # Get user from database
         user = get_user_from_db(username)
         
         # Simple authentication (in production, use proper password hashing)
         if user and user['password'] == password and user['is_active']:
-            # Successful login - reset failed attempts for this IP
-            reset_failed_attempts(client_ip)
-            
             # Invalidate any previous sessions for this user
             invalidate_previous_sessions(username)
             
@@ -522,79 +418,24 @@ def login():
             redirect_url = next_page if next_page else url_for('index')
             return redirect(redirect_url)
         else:
-            # Record failed attempt
-            record_failed_attempt(client_ip, username)
-            
-            # Enhanced logging for failed attempts
-            attempt_count = failed_attempts.get(client_ip, 0)
+            # Log failed login attempt
             try:
                 conn = get_db_connection()
                 conn.execute("""
                     INSERT INTO activity_logs (username, action, details, ip_address, user_agent, timestamp)
                     VALUES (?, ?, ?, ?, ?, ?)
-                """, (username, 'LOGIN_FAILED', 
-                      f'Failed login attempt #{attempt_count} from {client_ip}', 
-                      client_ip, request.headers.get('User-Agent', 'Unknown'), 
+                """, (username, 'LOGIN_FAILED', f'Failed login attempt from {request.remote_addr}', 
+                      request.remote_addr, request.headers.get('User-Agent', 'Unknown'), 
                       datetime.now().isoformat()))
                 conn.commit()
                 conn.close()
-            except Exception as e:
-                print(f"⚠️ Error logging failed attempt: {e}")
+            except:
+                pass
             
-            # Show appropriate error message
-            if attempt_count >= 3:
-                flash(f'Invalid credentials. Too many failed attempts (#{attempt_count}). Further attempts will be delayed.', 'error')
-            else:
-                flash('Invalid username or password', 'error')
-            
+            flash('Invalid username or password', 'error')
             return render_template('login.html', error='Invalid username or password', current_year=datetime.now().year)
     
     return render_template('login.html', current_year=datetime.now().year)
-
-@app.route('/login-simple', methods=['GET', 'POST'])
-@limiter.limit("10 per minute")
-def login_simple():
-    """Simple login page as fallback"""
-    if request.method == 'POST':
-        # Same login logic as main login
-        username = request.form['username']
-        password = request.form['password']
-        client_ip = request.remote_addr
-        
-        # Check for account lockout
-        if is_account_locked(username):
-            log_activity('LOGIN_BLOCKED', f'Login blocked for locked account {username} from {client_ip}')
-            return render_template('login_simple_backup.html', error='Account temporarily locked')
-        
-        # Get user from database
-        user = get_user_from_db(username)
-        
-        # Simple authentication
-        if user and user['password'] == password and user['is_active']:
-            # Generate new session ID
-            new_session_id = generate_session_id()
-            
-            # Store session data
-            session['logged_in'] = True
-            session['username'] = username
-            session['session_id'] = new_session_id
-            session['user_role'] = user['role']
-            update_session_activity()
-            
-            # Track active session
-            ACTIVE_SESSIONS[new_session_id] = {
-                'username': username,
-                'login_time': datetime.now().isoformat(),
-                'ip_address': request.remote_addr
-            }
-            
-            log_activity('LOGIN', f'Successful login from simple form - {request.remote_addr}')
-            return redirect(url_for('index'))
-        else:
-            record_failed_attempt(client_ip, username)
-            return render_template('login_simple_backup.html', error='Invalid credentials')
-    
-    return render_template('login_simple_backup.html')
 
 @app.route('/logout')
 def logout():
@@ -712,7 +553,6 @@ def settings():
     return render_template('settings.html', user=user, password_requirements=PASSWORD_REQUIREMENTS)
 
 @app.route('/force-password-change', methods=['GET', 'POST'])
-@limiter.limit("20 per minute")  # Rate limiting for password changes
 @login_required
 def force_password_change():
     """Force password change for users with temporary passwords"""
@@ -910,52 +750,6 @@ def index():
     ''').fetchall()
     conn.close()
     return render_template('index.html', findings=findings)
-
-@app.route('/about')
-@login_required
-def about():
-    """About page with application information"""
-    log_activity('VIEW_ABOUT', 'Accessed about page')
-    return render_template('about.html')
-
-@app.route('/test')
-def test():
-    """Simple test route to verify application is working"""
-    return """
-    <html>
-    <head>
-        <title>Test Page</title>
-        <style>
-            body { font-family: Arial, sans-serif; padding: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-            .container { max-width: 600px; margin: 0 auto; text-align: center; }
-            .status { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin: 20px 0; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>🚀 Flask Application Test</h1>
-            <div class="status">
-                <h2>✅ Application Status: RUNNING</h2>
-                <p>If you can see this page, the Flask application is working correctly.</p>
-                <p>Time: {}</p>
-            </div>
-            <div class="status">
-                <h3>🔧 Troubleshooting</h3>
-                <p>If the main application shows a black screen:</p>
-                <ul style="text-align: left;">
-                    <li>Check if Tailwind CSS CDN is loading</li>
-                    <li>Verify template inheritance is working</li>
-                    <li>Look for JavaScript console errors</li>
-                    <li>Check network tab for failed resource loads</li>
-                </ul>
-            </div>
-            <div class="status">
-                <a href="/" style="color: #fff; text-decoration: underline;">🏠 Go to Main Application</a>
-            </div>
-        </div>
-    </body>
-    </html>
-    """.format(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 @app.route('/findings')
 @login_required
@@ -1519,7 +1313,6 @@ if __name__ == '__main__':
     init_db()
     print("🚀 Starting Internal Audit Tracker...")
     print("📊 Database initialized successfully!")
-    port = int(os.environ.get('PORT', 5000))
-    print(f"🌐 Server running on port {port}")
+    print("🌐 Server running at: http://127.0.0.1:5000")
     print("Press CTRL+C to stop the server")
-    app.run(debug=False, host='0.0.0.0', port=port)
+    app.run(debug=True, host='127.0.0.1', port=5000)
