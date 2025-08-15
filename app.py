@@ -551,6 +551,51 @@ def login():
     
     return render_template('login.html', current_year=datetime.now().year)
 
+@app.route('/login-simple', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
+def login_simple():
+    """Simple login page as fallback"""
+    if request.method == 'POST':
+        # Same login logic as main login
+        username = request.form['username']
+        password = request.form['password']
+        client_ip = request.remote_addr
+        
+        # Check for account lockout
+        if is_account_locked(username):
+            log_activity('LOGIN_BLOCKED', f'Login blocked for locked account {username} from {client_ip}')
+            return render_template('login_simple_backup.html', error='Account temporarily locked')
+        
+        # Get user from database
+        user = get_user_from_db(username)
+        
+        # Simple authentication
+        if user and user['password'] == password and user['is_active']:
+            # Generate new session ID
+            new_session_id = generate_session_id()
+            
+            # Store session data
+            session['logged_in'] = True
+            session['username'] = username
+            session['session_id'] = new_session_id
+            session['user_role'] = user['role']
+            update_session_activity()
+            
+            # Track active session
+            ACTIVE_SESSIONS[new_session_id] = {
+                'username': username,
+                'login_time': datetime.now().isoformat(),
+                'ip_address': request.remote_addr
+            }
+            
+            log_activity('LOGIN', f'Successful login from simple form - {request.remote_addr}')
+            return redirect(url_for('index'))
+        else:
+            record_failed_attempt(client_ip, username)
+            return render_template('login_simple_backup.html', error='Invalid credentials')
+    
+    return render_template('login_simple_backup.html')
+
 @app.route('/logout')
 def logout():
     # Log logout activity before clearing session
@@ -872,6 +917,45 @@ def about():
     """About page with application information"""
     log_activity('VIEW_ABOUT', 'Accessed about page')
     return render_template('about.html')
+
+@app.route('/test')
+def test():
+    """Simple test route to verify application is working"""
+    return """
+    <html>
+    <head>
+        <title>Test Page</title>
+        <style>
+            body { font-family: Arial, sans-serif; padding: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+            .container { max-width: 600px; margin: 0 auto; text-align: center; }
+            .status { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin: 20px 0; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🚀 Flask Application Test</h1>
+            <div class="status">
+                <h2>✅ Application Status: RUNNING</h2>
+                <p>If you can see this page, the Flask application is working correctly.</p>
+                <p>Time: {}</p>
+            </div>
+            <div class="status">
+                <h3>🔧 Troubleshooting</h3>
+                <p>If the main application shows a black screen:</p>
+                <ul style="text-align: left;">
+                    <li>Check if Tailwind CSS CDN is loading</li>
+                    <li>Verify template inheritance is working</li>
+                    <li>Look for JavaScript console errors</li>
+                    <li>Check network tab for failed resource loads</li>
+                </ul>
+            </div>
+            <div class="status">
+                <a href="/" style="color: #fff; text-decoration: underline;">🏠 Go to Main Application</a>
+            </div>
+        </div>
+    </body>
+    </html>
+    """.format(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 @app.route('/findings')
 @login_required
