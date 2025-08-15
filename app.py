@@ -4,9 +4,11 @@ from datetime import datetime, timedelta
 import csv
 import io
 from functools import wraps
+import os
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-change-in-production'  # Change this in production!
+# Use environment variable for secret key in production, fallback for development
+app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
 app.permanent_session_lifetime = timedelta(minutes=5)  # Session expires in 5 minutes
 
 # Active sessions tracking (in production, use Redis or database)
@@ -1309,10 +1311,21 @@ def inject_template_vars():
     
     return context
 
+# Initialize database when module is imported (for production deployment)
+init_db()
+
 if __name__ == '__main__':
-    init_db()
     print("🚀 Starting Internal Audit Tracker...")
     print("📊 Database initialized successfully!")
-    print("🌐 Server running at: http://127.0.0.1:5000")
-    print("Press CTRL+C to stop the server")
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    
+    # Get port from environment variable (Railway/Heroku) or default to 5000
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') != 'production'
+    
+    if debug:
+        print(f"🌐 Server running at: http://127.0.0.1:{port}")
+        print("Press CTRL+C to stop the server")
+        app.run(debug=True, host='127.0.0.1', port=port)
+    else:
+        print(f"🌐 Production server starting on port {port}")
+        app.run(debug=False, host='0.0.0.0', port=port)

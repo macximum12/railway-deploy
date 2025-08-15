@@ -13,9 +13,9 @@ ENV/
 instance/
 .webassets-cache
 
-# Database
-*.db
-*.sqlite3
+# Database (allow initial database for deployment)
+# *.db
+# *.sqlite3
 
 # Environment variables
 .env
