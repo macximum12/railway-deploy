@@ -35,36 +35,60 @@ SECURITY_CONFIG = {
     'max_requests_per_window': 30,  # Max requests per minute
     'progressive_delay': True,  # Enable progressive delay
     'suspicious_threshold': 10,  # Mark IP as suspicious after X failed attempts
-    'max_suspicious_duration': 3600  # 1 hour suspension for suspicious IPs
+    'max_suspicious_duration': 3600,  # 1 hour suspension for suspicious IPs
+    'csrf_token_expiry': 3600  # CSRF tokens expire in 1 hour
 }
 
-# Password requirements based on industry standards (NIST/OWASP)
-PASSWORD_REQUIREMENTS = {
-    'admin': {
-        'min_length': 8,
-        'require_uppercase': True,
-        'require_lowercase': True, 
-        'require_numbers': True,
-        'require_special': False,  # Admin convenience
-        'description': 'Minimum 8 characters with uppercase, lowercase, and numbers'
+# Role definitions with permissions and password requirements
+ROLES = {
+    'Administrator': {
+        'permissions': ['create', 'read', 'update', 'delete', 'manage_users', 'admin_settings', 'security_monitor'],
+        'password_requirements': {
+            'min_length': 8,
+            'require_uppercase': True,
+            'require_lowercase': True, 
+            'require_numbers': True,
+            'require_special': False,  # Admin convenience
+            'description': 'Minimum 8 characters with uppercase, lowercase, and numbers'
+        }
     },
-    'editor': {
-        'min_length': 12,
-        'require_uppercase': True,
-        'require_lowercase': True,
-        'require_numbers': True, 
-        'require_special': True,
-        'description': 'Minimum 12 characters with uppercase, lowercase, numbers, and special characters'
+    'Content Manager': {
+        'permissions': ['create', 'read', 'update', 'delete', 'bulk_operations'],
+        'password_requirements': {
+            'min_length': 10,
+            'require_uppercase': True,
+            'require_lowercase': True,
+            'require_numbers': True,
+            'require_special': True,
+            'description': 'Minimum 10 characters with uppercase, lowercase, numbers, and special characters'
+        }
     },
-    'viewer': {
-        'min_length': 12,
-        'require_uppercase': True,
-        'require_lowercase': True,
-        'require_numbers': True,
-        'require_special': True,
-        'description': 'Minimum 12 characters with uppercase, lowercase, numbers, and special characters'
+    'Contributor': {
+        'permissions': ['create', 'read', 'update_own'],
+        'password_requirements': {
+            'min_length': 10,
+            'require_uppercase': True,
+            'require_lowercase': True,
+            'require_numbers': True,
+            'require_special': True,
+            'description': 'Minimum 10 characters with uppercase, lowercase, numbers, and special characters'
+        }
+    },
+    'Viewer': {
+        'permissions': ['read'],
+        'password_requirements': {
+            'min_length': 12,
+            'require_uppercase': True,
+            'require_lowercase': True,
+            'require_numbers': True,
+            'require_special': True,
+            'description': 'Minimum 12 characters with uppercase, lowercase, numbers, and special characters'
+        }
     }
 }
+
+# Password requirements (legacy support)
+PASSWORD_REQUIREMENTS = {role.lower().replace(' ', '_'): data['password_requirements'] for role, data in ROLES.items()}
 
 # Default admin credentials (in production, use a proper user database)
 DEFAULT_ADMIN = {
@@ -254,6 +278,53 @@ def security_check_decorator(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# CSRF PROTECTION FUNCTIONS
+def generate_csrf_token():
+    """Generate a secure CSRF token"""
+    if '_csrf_token' not in session:
+        session['_csrf_token'] = secrets.token_urlsafe(32)
+        session['_csrf_token_time'] = time.time()
+    return session['_csrf_token']
+
+def validate_csrf_token(token):
+    """Validate CSRF token"""
+    if '_csrf_token' not in session or '_csrf_token_time' not in session:
+        return False
+    
+    # Check if token matches
+    if not secrets.compare_digest(session.get('_csrf_token', ''), token):
+        return False
+    
+    # Check if token is expired
+    token_age = time.time() - session.get('_csrf_token_time', 0)
+    if token_age > SECURITY_CONFIG['csrf_token_expiry']:
+        return False
+    
+    return True
+
+def csrf_protect(f):
+    """Decorator to protect routes with CSRF tokens"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if request.method == 'POST':
+            token = request.form.get('csrf_token', '')
+            
+            if not validate_csrf_token(token):
+                ip = get_client_ip()
+                log_security_event('CSRF_TOKEN_INVALID', 
+                                 f'Invalid or missing CSRF token from IP: {ip} for route: {request.endpoint}', 
+                                 'WARNING')
+                flash('Security token invalid. Please try again.', 'error')
+                return redirect(request.url)
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Make CSRF token available to all templates
+@app.context_processor
+def csrf_token():
+    return {'csrf_token': generate_csrf_token}
+
 # Database setup
 def init_db():
     conn = sqlite3.connect('audit_findings.db')
@@ -303,7 +374,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
-        role TEXT DEFAULT 'viewer' CHECK (role IN ('admin', 'editor', 'viewer')),
+        role TEXT DEFAULT 'Viewer' CHECK (role IN ('Administrator', 'Content Manager', 'Contributor', 'Viewer')),
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT,
         is_active BOOLEAN DEFAULT 1,
@@ -316,7 +387,7 @@ def init_db():
     # Insert default admin user if not exists
     cursor.execute("""
     INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)
-    """, (DEFAULT_ADMIN['username'], DEFAULT_ADMIN['password'], 'admin'))
+    """, (DEFAULT_ADMIN['username'], DEFAULT_ADMIN['password'], 'Administrator'))
     
     conn.commit()
     conn.close()
@@ -452,9 +523,54 @@ def activate_user(username):
     conn.close()
 
 def is_admin(username):
-    """Check if user is admin"""
+    """Check if user is admin (legacy support)"""
     user = get_user_from_db(username)
-    return user and user['role'] == 'admin'
+    return user and user['role'] == 'Administrator'
+
+def has_permission(username, permission):
+    """Check if user has a specific permission"""
+    user = get_user_from_db(username)
+    if not user or not user.get('is_active', 1):
+        return False
+    
+    user_role = user.get('role')
+    if user_role not in ROLES:
+        return False
+    
+    return permission in ROLES[user_role]['permissions']
+
+def requires_permission(permission):
+    """Decorator to check if user has required permission"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            username = session.get('username')
+            if not username:
+                return redirect(url_for('login'))
+            
+            if not has_permission(username, permission):
+                flash('You do not have permission to access this resource.', 'error')
+                return redirect(url_for('dashboard'))
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+def get_user_role_info(username):
+    """Get user role and permissions information"""
+    user = get_user_from_db(username)
+    if not user:
+        return None
+    
+    role = user.get('role')
+    if role not in ROLES:
+        return None
+    
+    return {
+        'role': role,
+        'permissions': ROLES[role]['permissions'],
+        'password_requirements': ROLES[role]['password_requirements']
+    }
 
 # Session management functions
 def generate_session_id():
@@ -535,12 +651,13 @@ def login_required(f):
     return decorated_function
 
 def admin_required(f):
+    """Decorator for administrator-only access"""
     @wraps(f)
     @login_required
     def decorated_function(*args, **kwargs):
         username = session.get('username')
-        if not is_admin(username):
-            flash('Access denied. Admin privileges required.', 'error')
+        if not has_permission(username, 'admin_settings'):
+            flash('Access denied. Administrator privileges required.', 'error')
             return redirect(url_for('index'))
         return f(*args, **kwargs)
     return decorated_function
@@ -851,6 +968,7 @@ def activity_logs():
 
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
+@csrf_protect
 def settings():
     """User settings page"""
     username = session.get('username')
@@ -1019,24 +1137,28 @@ def manage_users():
 
 @app.route('/admin/users/add', methods=['GET', 'POST'])
 @admin_required
+@csrf_protect
 def add_user():
     """Admin page to add new user"""
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         temp_password = request.form.get('temp_password', '').strip()
-        role = request.form.get('role', 'viewer')
+        role = request.form.get('role', 'Viewer')
         
         # Validate inputs
         if not username or not temp_password:
             flash('Username and temporary password are required', 'error')
             return render_template('admin/add_user.html', password_requirements=PASSWORD_REQUIREMENTS)
         
-        if role not in ['admin', 'editor', 'viewer']:
+        if role not in ROLES:
             flash('Invalid role selected', 'error')
             return render_template('admin/add_user.html', password_requirements=PASSWORD_REQUIREMENTS)
         
-        # Validate temporary password requirements
-        is_valid, message = validate_password_requirements(temp_password, role)
+        # Get role-specific password requirements
+        role_key = role.lower().replace(' ', '_')
+        
+        # Validate temporary password requirements  
+        is_valid, message = validate_password_requirements(temp_password, role_key)
         if not is_valid:
             flash(f"Temporary password error: {message}", 'error')
             return render_template('admin/add_user.html', password_requirements=PASSWORD_REQUIREMENTS)
@@ -1050,7 +1172,7 @@ def add_user():
         else:
             flash('Username already exists', 'error')
     
-    return render_template('admin/add_user.html', password_requirements=PASSWORD_REQUIREMENTS)
+    return render_template('admin/add_user.html', password_requirements=PASSWORD_REQUIREMENTS, roles=ROLES)
 
 @app.route('/admin/users/<username>/toggle-status', methods=['POST'])
 @admin_required
@@ -1082,15 +1204,32 @@ def toggle_user_status(username):
 @login_required
 def index():
     log_activity('VIEW_DASHBOARD', 'Accessed main dashboard')
+    username = session.get('username')
+    user_role_info = get_user_role_info(username)
+    
     conn = get_db_connection()
-    findings = conn.execute('''
-        SELECT id, audit_reference, audit_report, status, priority, 
-               target_date, person_responsible, created_at 
-        FROM audit_findings 
-        ORDER BY created_at DESC
-    ''').fetchall()
+    
+    # Filter findings based on permissions
+    if has_permission(username, 'read'):
+        # Can see all findings
+        findings = conn.execute('''
+            SELECT id, audit_reference, audit_report, status, priority, 
+                   target_date, person_responsible, created_at, created_by
+            FROM audit_findings 
+            ORDER BY created_at DESC
+        ''').fetchall()
+    else:
+        # Can only see their own findings (shouldn't happen with current roles, but future-proof)
+        findings = conn.execute('''
+            SELECT id, audit_reference, audit_report, status, priority, 
+                   target_date, person_responsible, created_at, created_by
+            FROM audit_findings 
+            WHERE created_by = ?
+            ORDER BY created_at DESC
+        ''', (username,)).fetchall()
+    
     conn.close()
-    return render_template('index.html', findings=findings)
+    return render_template('index.html', findings=findings, user_role_info=user_role_info)
 
 @app.route('/findings')
 @login_required
@@ -1107,6 +1246,8 @@ def findings():
 
 @app.route('/add', methods=['GET', 'POST'])
 @login_required
+@requires_permission('create')
+@csrf_protect
 def add_finding():
     if request.method == 'POST':
         conn = get_db_connection()
@@ -1182,8 +1323,25 @@ def add_finding():
 
 @app.route('/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
+@csrf_protect
 def edit_finding(id):
     conn = get_db_connection()
+    username = session.get('username')
+    
+    # Check permissions
+    can_update_all = has_permission(username, 'update')
+    can_update_own = has_permission(username, 'update_own')
+    
+    if not (can_update_all or can_update_own):
+        flash('You do not have permission to edit findings.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # If user can only update their own, verify ownership
+    if can_update_own and not can_update_all:
+        finding = conn.execute('SELECT created_by FROM audit_findings WHERE id = ?', (id,)).fetchone()
+        if not finding or finding['created_by'] != username:
+            flash('You can only edit findings you created.', 'error')
+            return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
         now = datetime.now().isoformat()
@@ -1277,6 +1435,7 @@ def export_csv():
 
 @app.route('/import', methods=['GET', 'POST'])
 @login_required
+@csrf_protect
 def import_findings():
     if request.method == 'POST':
         if 'file' not in request.files:

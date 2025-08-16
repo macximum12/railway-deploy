@@ -60,9 +60,10 @@
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
                             onchange="updatePasswordRequirement()"
                         >
-                            <option value="viewer">Viewer - Read-only access</option>
-                            <option value="editor">Editor - Can edit audit findings</option>
-                            <option value="admin">Admin - Full system access</option>
+                            <option value="Viewer">Viewer - Read-only access to audit findings</option>
+                            <option value="Contributor">Contributor - Can create and edit their own findings</option>
+                            <option value="Content Manager">Content Manager - Can create, edit, and delete audit findings</option>
+                            <option value="Administrator">Administrator - Full system access and user management</option>
                         </select>
                     </div>
 
@@ -217,21 +218,28 @@
 
 <script>
 const passwordRequirements = {
-    'admin': {
-        minLength: {{ password_requirements.admin.min_length }},
-        requireUppercase: {{ 'true' if password_requirements.admin.require_uppercase else 'false' }},
-        requireLowercase: {{ 'true' if password_requirements.admin.require_lowercase else 'false' }},
-        requireNumbers: {{ 'true' if password_requirements.admin.require_numbers else 'false' }},
-        requireSpecial: {{ 'true' if password_requirements.admin.require_special else 'false' }}
+    'Administrator': {
+        minLength: {{ password_requirements.administrator.min_length }},
+        requireUppercase: {{ 'true' if password_requirements.administrator.require_uppercase else 'false' }},
+        requireLowercase: {{ 'true' if password_requirements.administrator.require_lowercase else 'false' }},
+        requireNumbers: {{ 'true' if password_requirements.administrator.require_numbers else 'false' }},
+        requireSpecial: {{ 'true' if password_requirements.administrator.require_special else 'false' }}
     },
-    'editor': {
-        minLength: {{ password_requirements.editor.min_length }},
-        requireUppercase: {{ 'true' if password_requirements.editor.require_uppercase else 'false' }},
-        requireLowercase: {{ 'true' if password_requirements.editor.require_lowercase else 'false' }},
-        requireNumbers: {{ 'true' if password_requirements.editor.require_numbers else 'false' }},
-        requireSpecial: {{ 'true' if password_requirements.editor.require_special else 'false' }}
+    'Content Manager': {
+        minLength: {{ password_requirements.content_manager.min_length }},
+        requireUppercase: {{ 'true' if password_requirements.content_manager.require_uppercase else 'false' }},
+        requireLowercase: {{ 'true' if password_requirements.content_manager.require_lowercase else 'false' }},
+        requireNumbers: {{ 'true' if password_requirements.content_manager.require_numbers else 'false' }},
+        requireSpecial: {{ 'true' if password_requirements.content_manager.require_special else 'false' }}
     },
-    'viewer': {
+    'Contributor': {
+        minLength: {{ password_requirements.contributor.min_length }},
+        requireUppercase: {{ 'true' if password_requirements.contributor.require_uppercase else 'false' }},
+        requireLowercase: {{ 'true' if password_requirements.contributor.require_lowercase else 'false' }},
+        requireNumbers: {{ 'true' if password_requirements.contributor.require_numbers else 'false' }},
+        requireSpecial: {{ 'true' if password_requirements.contributor.require_special else 'false' }}
+    },
+    'Viewer': {
         minLength: {{ password_requirements.viewer.min_length }},
         requireUppercase: {{ 'true' if password_requirements.viewer.require_uppercase else 'false' }},
         requireLowercase: {{ 'true' if password_requirements.viewer.require_lowercase else 'false' }},
