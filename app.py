@@ -9,11 +9,68 @@ import time
 import hashlib
 import secrets
 import ipaddress
+import bcrypt
 
 app = Flask(__name__)
 # Use environment variable for secret key in production, fallback for development
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
 app.permanent_session_lifetime = timedelta(minutes=5)  # Session expires in 5 minutes
+
+# SECURITY: Add security headers to all responses
+@app.after_request
+def add_security_headers(response):
+    """Add comprehensive security headers to protect against various attacks"""
+    # Prevent clickjacking attacks
+    response.headers['X-Frame-Options'] = 'DENY'
+    
+    # Prevent MIME type sniffing
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    
+    # Enable XSS filtering in browsers
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    
+    # More permissive CSP for development while maintaining core security
+    # In production, this should be more restrictive
+    is_development = app.debug or not (request.is_secure or request.headers.get('X-Forwarded-Proto') == 'https')
+    
+    if is_development:
+        # Development CSP - more permissive for styling and scripts
+        csp_policy = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:; "
+            "style-src 'self' 'unsafe-inline' https: data:; "
+            "font-src 'self' https: data:; "
+            "img-src 'self' data: https:; "
+            "connect-src 'self' https:; "
+            "frame-ancestors 'none'; "
+            "object-src 'none'; "
+            "base-uri 'self';"
+        )
+    else:
+        # Production CSP - more restrictive
+        csp_policy = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data: https:; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'; "
+            "object-src 'none'; "
+            "base-uri 'self';"
+        )
+    
+    response.headers['Content-Security-Policy'] = csp_policy
+    
+    # Referrer Policy - control information sent in referrer header
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    
+    # Only add HTTPS headers if we detect HTTPS
+    if request.is_secure or request.headers.get('X-Forwarded-Proto') == 'https':
+        # Enforce HTTPS
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+    
+    return response
 
 # Active sessions tracking (in production, use Redis or database)
 ACTIVE_SESSIONS = {}
@@ -95,6 +152,120 @@ DEFAULT_ADMIN = {
     'username': 'admin',
     'password': 'admin'  # In production, use hashed passwords!
 }
+
+# PASSWORD HASHING FUNCTIONS
+def hash_password(password):
+    """Hash a password using bcrypt"""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password, hashed_password):
+    """Verify a password against its hash"""
+    try:
+        # Handle both hashed and plain text passwords for migration
+        if hashed_password.startswith('$2b$') or hashed_password.startswith('$2a$'):
+            # This is a bcrypt hash
+            return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
+        else:
+            # Legacy plain text password - verify and update
+            if password == hashed_password:
+                return True
+    except Exception as e:
+        print(f"Password verification error: {e}")
+        return False
+    return False
+
+def migrate_user_password(username, password):
+    """Migrate a user's plain text password to hashed password"""
+    try:
+        conn = sqlite3.connect('audit_findings.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Hash the password
+        hashed_password = hash_password(password)
+        
+        # Update the database
+        cursor.execute('''
+            UPDATE users 
+            SET password = ?, updated_at = ? 
+            WHERE username = ?
+        ''', (hashed_password, datetime.now().isoformat(), username))
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"Password migrated to hash for user: {username}")
+        return True
+    except Exception as e:
+        print(f"Error migrating password for {username}: {e}")
+        return False
+
+def generate_temporary_password():
+    """Generate a secure temporary password"""
+    # Use a mix of uppercase, lowercase, numbers, and special characters
+    import string
+    import random
+    
+    # Define character sets
+    uppercase = string.ascii_uppercase
+    lowercase = string.ascii_lowercase
+    numbers = string.digits
+    special_chars = "!@#$%^&*"
+    
+    # Ensure at least one character from each set
+    password = [
+        random.choice(uppercase),
+        random.choice(lowercase),
+        random.choice(numbers),
+        random.choice(special_chars)
+    ]
+    
+    # Fill the rest with random choices from all sets
+    all_chars = uppercase + lowercase + numbers + special_chars
+    for _ in range(8):  # Total length will be 12 characters
+        password.append(random.choice(all_chars))
+    
+    # Shuffle to avoid predictable patterns
+    random.shuffle(password)
+    
+    return ''.join(password)
+
+def reset_user_password(username, admin_username):
+    """Reset user password to a temporary password and mark for forced change"""
+    try:
+        # Generate temporary password
+        temp_password = generate_temporary_password()
+        
+        # Hash the temporary password
+        hashed_temp_password = hash_password(temp_password)
+        
+        conn = sqlite3.connect('audit_findings.db')
+        cursor = conn.cursor()
+        
+        # Update user with temporary password and force change flag
+        cursor.execute('''
+            UPDATE users 
+            SET password = ?, 
+                must_change_password = 1,
+                updated_at = ?
+            WHERE username = ?
+        ''', (hashed_temp_password, datetime.now().isoformat(), username))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return None, "User not found"
+        
+        conn.commit()
+        conn.close()
+        
+        # Log the password reset activity
+        log_activity('PASSWORD_RESET', f'Password reset for user {username} by admin {admin_username}')
+        
+        return temp_password, None
+        
+    except Exception as e:
+        print(f"Error resetting password for {username}: {e}")
+        return None, f"Error resetting password: {str(e)}"
 
 # SECURITY FUNCTIONS
 def get_client_ip():
@@ -446,22 +617,24 @@ def get_user_from_db(username):
     return None
 
 def update_user_password(username, new_password):
-    """Update user password in database"""
+    """Update user password in database with hashing"""
     conn = get_db_connection()
+    hashed_password = hash_password(new_password)
     conn.execute("""
         UPDATE users SET password = ?, updated_at = ?, must_change_password = 0, temp_password = 0 WHERE username = ?
-    """, (new_password, datetime.now().isoformat(), username))
+    """, (hashed_password, datetime.now().isoformat(), username))
     conn.commit()
     conn.close()
 
 def create_user(username, temp_password, role, created_by):
-    """Create a new user with temporary password"""
+    """Create a new user with temporary password (hashed)"""
     try:
         conn = get_db_connection()
+        hashed_password = hash_password(temp_password)
         conn.execute("""
             INSERT INTO users (username, password, role, created_by, must_change_password, temp_password, created_at)
             VALUES (?, ?, ?, ?, 1, 1, ?)
-        """, (username, temp_password, role, created_by, datetime.now().isoformat()))
+        """, (username, hashed_password, role, created_by, datetime.now().isoformat()))
         conn.commit()
         conn.close()
         return True
@@ -771,7 +944,11 @@ def login():
         user = get_user_from_db(username)
         
         # Enhanced authentication with security logging
-        if user and user['password'] == password and user['is_active']:
+        if user and verify_password(password, user['password']) and user['is_active']:
+            # Migrate plain text password to hashed if needed
+            if not (user['password'].startswith('$2b$') or user['password'].startswith('$2a$')):
+                migrate_user_password(username, password)
+            
             # Successful login - clear any failed attempts for this IP
             if ip in LOGIN_ATTEMPTS:
                 del LOGIN_ATTEMPTS[ip]
@@ -950,6 +1127,7 @@ def security_status():
 
 @app.route('/admin/unblock-ip/<ip>', methods=['POST'])
 @admin_required
+@csrf_protect
 def unblock_ip(ip):
     """Admin route to manually unblock a suspicious IP"""
     try:
@@ -980,6 +1158,7 @@ def unblock_ip(ip):
 
 @app.route('/admin/unlock-account/<username>', methods=['POST'])
 @admin_required
+@csrf_protect
 def unlock_account(username):
     """Admin route to manually unlock an account"""
     try:
@@ -1082,7 +1261,7 @@ def settings():
             return render_template('settings.html', user=user, password_requirements=template_password_requirements)
         
         # Verify current password
-        if not user or user['password'] != current_password:
+        if not user or not verify_password(current_password, user['password']):
             flash('Current password is incorrect', 'error')
             log_activity('PASSWORD_CHANGE_FAILED', 'Incorrect current password provided')
             return render_template('settings.html', user=user, password_requirements=template_password_requirements)
@@ -1099,6 +1278,7 @@ def settings():
 
 @app.route('/force-password-change', methods=['GET', 'POST'])
 @login_required
+@csrf_protect
 @security_check_decorator
 def force_password_change():
     """Force password change for users with temporary passwords"""
@@ -1163,13 +1343,13 @@ def force_password_change():
             return render_template('force_password_change.html', user=user, password_requirements=PASSWORD_REQUIREMENTS)
         
         # CRITICAL SECURITY: Prevent reuse of temporary password
-        if new_password == current_password:
+        if verify_password(new_password, user['password']):
             flash('New password cannot be the same as your current temporary password. You must choose a different password.', 'error')
             log_activity('PASSWORD_CHANGE_FAILED', 'Attempted to reuse temporary password as new password')
             return render_template('force_password_change.html', user=user, password_requirements=PASSWORD_REQUIREMENTS)
         
         # Verify current password (temporary password)
-        if user['password'] != current_password:
+        if not verify_password(current_password, user['password']):
             flash('Current temporary password is incorrect', 'error')
             log_activity('PASSWORD_CHANGE_FAILED', 'Incorrect temporary password provided')
             return render_template('force_password_change.html', user=user, password_requirements=PASSWORD_REQUIREMENTS)
@@ -1280,6 +1460,7 @@ def add_user():
 
 @app.route('/admin/users/<username>/toggle-status', methods=['POST'])
 @admin_required
+@csrf_protect
 def toggle_user_status(username):
     """Toggle user active/inactive status"""
     user = get_user_from_db(username)
@@ -1301,6 +1482,35 @@ def toggle_user_status(username):
         activate_user(username)
         log_activity('ACTIVATE_USER', f'Activated user: {username}')
         flash(f'User "{username}" has been activated', 'success')
+    
+    return redirect(url_for('manage_users'))
+
+@app.route('/admin/users/<username>/reset-password', methods=['POST'])
+@admin_required
+@csrf_protect  
+def admin_reset_password(username):
+    """Admin function to reset user password to temporary password"""
+    # Prevent admin from resetting their own password this way
+    current_user = session.get('username')
+    if username == current_user:
+        flash('You cannot reset your own password through admin panel. Use account settings instead.', 'error')
+        return redirect(url_for('manage_users'))
+    
+    # Check if user exists
+    user = get_user_from_db(username)
+    if not user:
+        flash('User not found', 'error')
+        return redirect(url_for('manage_users'))
+    
+    # Generate and set temporary password
+    temp_password, error = reset_user_password(username, current_user)
+    
+    if error:
+        flash(f'Error resetting password: {error}', 'error')
+    else:
+        flash(f'Password reset successful! Temporary password for "{username}": <strong>{temp_password}</strong><br>'
+              f'<small>Please share this securely with the user. They must change it on next login.</small>', 'success')
+        log_activity('ADMIN_PASSWORD_RESET', f'Admin {current_user} reset password for user {username}')
     
     return redirect(url_for('manage_users'))
 
