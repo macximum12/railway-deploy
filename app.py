@@ -470,15 +470,31 @@ def create_user(username, temp_password, role, created_by):
 
 def get_all_users():
     """Get all users for admin management"""
-    conn = get_db_connection()
-    users = conn.execute("""
-        SELECT id, username, role, is_active, must_change_password, temp_password, created_at, created_by
-        FROM users ORDER BY created_at DESC
-    """).fetchall()
-    conn.close()
-    
-    # Convert sqlite3.Row objects to dictionaries
-    return [dict(user) for user in users]
+    try:
+        conn = get_db_connection()
+        users = conn.execute("""
+            SELECT id, username, role, is_active, must_change_password, temp_password, created_at, created_by
+            FROM users ORDER BY created_at DESC
+        """).fetchall()
+        conn.close()
+        
+        # Convert sqlite3.Row objects to dictionaries and handle role compatibility
+        user_list = []
+        for user in users:
+            user_dict = dict(user)
+            # Map legacy roles for template compatibility
+            if user_dict['role'] == 'admin':
+                user_dict['role'] = 'Administrator'
+            elif user_dict['role'] == 'editor':
+                user_dict['role'] = 'Content Manager'
+            elif user_dict['role'] == 'viewer':
+                user_dict['role'] = 'Viewer'
+            user_list.append(user_dict)
+        
+        return user_list
+    except Exception as e:
+        print(f"❌ Error fetching users: {e}")
+        return []
 
 def validate_password_requirements(password, role):
     """Validate password based on industry standards (NIST/OWASP)"""
@@ -1157,9 +1173,26 @@ def reset_password_loop():
 @admin_required
 def manage_users():
     """Admin page to manage users"""
-    users = get_all_users()
-    log_activity('VIEW_USER_MANAGEMENT', 'Accessed user management page')
-    return render_template('admin/manage_users.html', users=users, password_requirements=PASSWORD_REQUIREMENTS)
+    try:
+        users = get_all_users()
+        log_activity('VIEW_USER_MANAGEMENT', 'Accessed user management page')
+        
+        # Ensure password requirements structure matches template expectations
+        template_password_requirements = {}
+        for role, data in ROLES.items():
+            key = role.lower().replace(' ', '_')
+            template_password_requirements[key] = data['password_requirements']
+        
+        return render_template('admin/manage_users.html', 
+                             users=users, 
+                             password_requirements=template_password_requirements, 
+                             roles=ROLES)
+    except Exception as e:
+        print(f"❌ Error in manage_users: {e}")
+        import traceback
+        print(f"Full error traceback: {traceback.format_exc()}")
+        flash('Error loading user management page. Please try again.', 'error')
+        return redirect(url_for('index'))
 
 @app.route('/admin/users/add', methods=['GET', 'POST'])
 @admin_required
@@ -1843,16 +1876,50 @@ def inject_template_vars():
     context = {}
     
     # Check if current user must change password
-    if 'username' in session:
-        user = get_user_from_db(session['username'])
-        if user:
-            context['user_must_change_password'] = user.get('must_change_password', False)
+    try:
+        if 'username' in session:
+            user = get_user_from_db(session['username'])
+            if user:
+                context['user_must_change_password'] = user.get('must_change_password', False)
+            else:
+                context['user_must_change_password'] = False
         else:
             context['user_must_change_password'] = False
-    else:
+    except RuntimeError:
+        # Handle case where we're outside request context
         context['user_must_change_password'] = False
     
     return context
+
+# Production error handlers
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle internal server errors"""
+    import traceback
+    error_trace = traceback.format_exc()
+    print(f"❌ Internal Server Error: {error_trace}")
+    
+    # Log to a file if possible
+    try:
+        with open('error.log', 'a') as f:
+            f.write(f"{datetime.now()}: {error_trace}\n")
+    except:
+        pass
+    
+    return render_template('error.html', 
+                         error_message="Internal server error occurred. Please try again."), 500
+
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handle 404 errors"""
+    return render_template('error.html', 
+                         error_message="Page not found."), 404
+
+@app.errorhandler(403)
+def forbidden_error(error):
+    """Handle 403 errors"""
+    return render_template('error.html', 
+                         error_message="Access forbidden."), 403
 
 # Initialize database when module is imported (for production deployment)
 init_db()
