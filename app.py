@@ -5,6 +5,10 @@ import csv
 import io
 from functools import wraps
 import os
+import time
+import hashlib
+import secrets
+import ipaddress
 
 app = Flask(__name__)
 # Use environment variable for secret key in production, fallback for development
@@ -16,6 +20,23 @@ ACTIVE_SESSIONS = {}
 
 # Track password change attempts to prevent loops
 PASSWORD_CHANGE_ATTEMPTS = {}
+
+# SECURITY: Brute force protection
+LOGIN_ATTEMPTS = {}  # Track failed login attempts per IP
+ACCOUNT_LOCKOUTS = {}  # Track locked accounts
+SUSPICIOUS_IPS = {}  # Track IPs with suspicious activity
+RATE_LIMITS = {}  # Track rate limiting per IP
+
+# Security configuration
+SECURITY_CONFIG = {
+    'max_login_attempts': 5,  # Max failed attempts before lockout
+    'lockout_duration': 900,  # 15 minutes lockout
+    'rate_limit_window': 60,  # 1 minute window
+    'max_requests_per_window': 30,  # Max requests per minute
+    'progressive_delay': True,  # Enable progressive delay
+    'suspicious_threshold': 10,  # Mark IP as suspicious after X failed attempts
+    'max_suspicious_duration': 3600  # 1 hour suspension for suspicious IPs
+}
 
 # Password requirements based on industry standards (NIST/OWASP)
 PASSWORD_REQUIREMENTS = {
@@ -50,6 +71,188 @@ DEFAULT_ADMIN = {
     'username': 'admin',
     'password': 'admin'  # In production, use hashed passwords!
 }
+
+# SECURITY FUNCTIONS
+def get_client_ip():
+    """Get client IP address, handling proxies and load balancers"""
+    # Check for forwarded IP (common with proxies/load balancers)
+    forwarded_for = request.headers.get('X-Forwarded-For')
+    if forwarded_for:
+        # Take the first IP if multiple are present
+        return forwarded_for.split(',')[0].strip()
+    
+    # Check for real IP (some proxies use this)
+    real_ip = request.headers.get('X-Real-IP')
+    if real_ip:
+        return real_ip
+    
+    # Fallback to remote address
+    return request.remote_addr or 'unknown'
+
+def is_rate_limited(ip):
+    """Check if IP is rate limited"""
+    current_time = time.time()
+    window_start = current_time - SECURITY_CONFIG['rate_limit_window']
+    
+    if ip not in RATE_LIMITS:
+        RATE_LIMITS[ip] = []
+    
+    # Clean old requests outside the window
+    RATE_LIMITS[ip] = [req_time for req_time in RATE_LIMITS[ip] if req_time > window_start]
+    
+    # Check if limit exceeded
+    if len(RATE_LIMITS[ip]) >= SECURITY_CONFIG['max_requests_per_window']:
+        return True
+    
+    # Add current request
+    RATE_LIMITS[ip].append(current_time)
+    return False
+
+def is_ip_suspicious(ip):
+    """Check if IP is marked as suspicious"""
+    if ip not in SUSPICIOUS_IPS:
+        return False
+    
+    current_time = time.time()
+    suspicious_until = SUSPICIOUS_IPS[ip].get('until', 0)
+    
+    if current_time > suspicious_until:
+        # Suspension expired, remove from suspicious list
+        del SUSPICIOUS_IPS[ip]
+        return False
+    
+    return True
+
+def mark_ip_suspicious(ip, reason="Multiple failed login attempts"):
+    """Mark IP as suspicious with temporary suspension"""
+    current_time = time.time()
+    SUSPICIOUS_IPS[ip] = {
+        'marked_at': current_time,
+        'until': current_time + SECURITY_CONFIG['max_suspicious_duration'],
+        'reason': reason,
+        'attempts': SUSPICIOUS_IPS.get(ip, {}).get('attempts', 0) + 1
+    }
+    
+    print(f"🚨 SECURITY: Marked IP {ip} as suspicious - {reason}")
+
+def is_account_locked(username):
+    """Check if account is locked due to failed attempts"""
+    if username not in ACCOUNT_LOCKOUTS:
+        return False
+    
+    current_time = time.time()
+    locked_until = ACCOUNT_LOCKOUTS[username].get('until', 0)
+    
+    if current_time > locked_until:
+        # Lockout expired, remove from locked accounts
+        del ACCOUNT_LOCKOUTS[username]
+        return False
+    
+    return True
+
+def lock_account(username, ip):
+    """Lock account temporarily after failed attempts"""
+    current_time = time.time()
+    lockout_duration = SECURITY_CONFIG['lockout_duration']
+    
+    ACCOUNT_LOCKOUTS[username] = {
+        'locked_at': current_time,
+        'until': current_time + lockout_duration,
+        'ip': ip,
+        'attempts': ACCOUNT_LOCKOUTS.get(username, {}).get('attempts', 0) + 1
+    }
+    
+    print(f"🔒 SECURITY: Account '{username}' locked until {datetime.fromtimestamp(current_time + lockout_duration)}")
+
+def record_failed_login(username, ip):
+    """Record failed login attempt and apply security measures"""
+    current_time = time.time()
+    
+    # Initialize tracking for this IP if not exists
+    if ip not in LOGIN_ATTEMPTS:
+        LOGIN_ATTEMPTS[ip] = []
+    
+    # Add failed attempt
+    LOGIN_ATTEMPTS[ip].append({
+        'timestamp': current_time,
+        'username': username
+    })
+    
+    # Clean old attempts (older than 1 hour)
+    hour_ago = current_time - 3600
+    LOGIN_ATTEMPTS[ip] = [attempt for attempt in LOGIN_ATTEMPTS[ip] if attempt['timestamp'] > hour_ago]
+    
+    # Count recent failed attempts
+    recent_attempts = len(LOGIN_ATTEMPTS[ip])
+    
+    # Apply progressive security measures
+    if recent_attempts >= SECURITY_CONFIG['suspicious_threshold']:
+        mark_ip_suspicious(ip, f"Too many failed login attempts ({recent_attempts})")
+    elif recent_attempts >= SECURITY_CONFIG['max_login_attempts']:
+        lock_account(username, ip)
+    
+    return recent_attempts
+
+def calculate_progressive_delay(attempts):
+    """Calculate delay based on number of attempts (exponential backoff)"""
+    if not SECURITY_CONFIG['progressive_delay']:
+        return 0
+    
+    # Progressive delays: 1s, 2s, 4s, 8s, 16s, capped at 30s
+    delay = min(2 ** (attempts - 1), 30)
+    return delay
+
+def apply_security_delay(attempts):
+    """Apply progressive delay to slow down brute force attempts"""
+    if attempts > 1:
+        delay = calculate_progressive_delay(attempts)
+        if delay > 0:
+            print(f"⏳ SECURITY: Applying {delay}s delay after {attempts} failed attempts")
+            time.sleep(delay)
+
+def log_security_event(event_type, details, severity="INFO"):
+    """Log security events with enhanced details"""
+    try:
+        conn = get_db_connection()
+        ip = get_client_ip()
+        user_agent = request.headers.get('User-Agent', 'Unknown')
+        username = session.get('username', 'Anonymous')
+        
+        # Enhanced security logging
+        security_details = f"IP: {ip} | Event: {event_type} | Details: {details} | Severity: {severity}"
+        
+        conn.execute("""
+            INSERT INTO activity_logs (username, action, details, ip_address, user_agent, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (username, f'SECURITY_{event_type}', security_details, ip, user_agent, datetime.now().isoformat()))
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"🛡️  SECURITY LOG [{severity}]: {username} - {event_type} - {details}")
+    except Exception as e:
+        print(f"❌ Failed to log security event: {e}")
+
+def security_check_decorator(f):
+    """Decorator to apply security checks before processing requests"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        ip = get_client_ip()
+        
+        # Check if IP is suspicious
+        if is_ip_suspicious(ip):
+            log_security_event('BLOCKED_SUSPICIOUS_IP', f'Blocked request from suspicious IP: {ip}', 'WARNING')
+            flash('Access temporarily restricted. Please try again later.', 'error')
+            return render_template('login.html', error='Access temporarily restricted', current_year=datetime.now().year), 429
+        
+        # Check rate limiting
+        if is_rate_limited(ip):
+            log_security_event('RATE_LIMIT_EXCEEDED', f'Rate limit exceeded for IP: {ip}', 'WARNING')
+            flash('Too many requests. Please slow down.', 'error')
+            return render_template('login.html', error='Rate limit exceeded', current_year=datetime.now().year), 429
+        
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Database setup
 def init_db():
@@ -356,17 +559,40 @@ def update_session_activity():
 
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
+@security_check_decorator
 def login():
+    ip = get_client_ip()
+    
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
         remember = request.form.get('remember')
+        
+        # Input validation
+        if not username or not password:
+            log_security_event('LOGIN_ATTEMPT', f'Empty credentials provided from IP: {ip}', 'WARNING')
+            flash('Username and password are required', 'error')
+            return render_template('login.html', error='Invalid input', current_year=datetime.now().year)
+        
+        # Check if account is locked
+        if is_account_locked(username):
+            locked_until = ACCOUNT_LOCKOUTS[username]['until']
+            remaining_time = int(locked_until - time.time())
+            log_security_event('LOGIN_BLOCKED', f'Attempt to access locked account "{username}" from IP: {ip}', 'WARNING')
+            flash(f'Account temporarily locked. Try again in {remaining_time//60} minutes.', 'error')
+            return render_template('login.html', error='Account locked', current_year=datetime.now().year)
         
         # Get user from database
         user = get_user_from_db(username)
         
-        # Simple authentication (in production, use proper password hashing)
+        # Enhanced authentication with security logging
         if user and user['password'] == password and user['is_active']:
+            # Successful login - clear any failed attempts for this IP
+            if ip in LOGIN_ATTEMPTS:
+                del LOGIN_ATTEMPTS[ip]
+            if username in ACCOUNT_LOCKOUTS:
+                del ACCOUNT_LOCKOUTS[username]
+            
             # Invalidate any previous sessions for this user
             invalidate_previous_sessions(username)
             
@@ -420,20 +646,32 @@ def login():
             redirect_url = next_page if next_page else url_for('index')
             return redirect(redirect_url)
         else:
-            # Log failed login attempt
+            # SECURITY: Enhanced failed login handling
+            failed_attempts = record_failed_login(username, ip)
+            
+            # Apply progressive delay to slow down brute force attempts
+            apply_security_delay(failed_attempts)
+            
+            # Enhanced security logging
+            log_security_event('LOGIN_FAILED', 
+                             f'Failed login attempt for user "{username}" from IP: {ip} (Attempt #{failed_attempts})', 
+                             'WARNING')
+            
+            # Log failed login attempt to activity logs
             try:
                 conn = get_db_connection()
                 conn.execute("""
                     INSERT INTO activity_logs (username, action, details, ip_address, user_agent, timestamp)
                     VALUES (?, ?, ?, ?, ?, ?)
-                """, (username, 'LOGIN_FAILED', f'Failed login attempt from {request.remote_addr}', 
-                      request.remote_addr, request.headers.get('User-Agent', 'Unknown'), 
+                """, (username, 'LOGIN_FAILED', f'Failed login attempt #{failed_attempts} from {ip}', 
+                      ip, request.headers.get('User-Agent', 'Unknown'), 
                       datetime.now().isoformat()))
                 conn.commit()
                 conn.close()
-            except:
-                pass
+            except Exception as e:
+                print(f"Failed to log login attempt: {e}")
             
+            # Generic error message (don't reveal if username exists)
             flash('Invalid username or password', 'error')
             return render_template('login.html', error='Invalid username or password', current_year=datetime.now().year)
     
@@ -472,6 +710,106 @@ def view_sessions():
             for sid, data in ACTIVE_SESSIONS.items()
         }
     })
+
+@app.route('/admin/security-status')
+@admin_required
+def security_status():
+    """Admin route to view security status and threats"""
+    log_activity('VIEW_SECURITY_STATUS', 'Accessed security status page')
+    
+    current_time = time.time()
+    
+    # Prepare security status data
+    security_data = {
+        'suspicious_ips': {},
+        'account_lockouts': {},
+        'recent_failed_attempts': {},
+        'security_config': SECURITY_CONFIG,
+        'total_suspicious_ips': len(SUSPICIOUS_IPS),
+        'total_locked_accounts': len(ACCOUNT_LOCKOUTS),
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    # Format suspicious IPs data
+    for ip, data in SUSPICIOUS_IPS.items():
+        remaining_time = max(0, int(data['until'] - current_time))
+        security_data['suspicious_ips'][ip] = {
+            'reason': data['reason'],
+            'marked_at': datetime.fromtimestamp(data['marked_at']).isoformat(),
+            'remaining_minutes': remaining_time // 60,
+            'attempts': data['attempts']
+        }
+    
+    # Format account lockouts data
+    for username, data in ACCOUNT_LOCKOUTS.items():
+        remaining_time = max(0, int(data['until'] - current_time))
+        security_data['account_lockouts'][username] = {
+            'locked_at': datetime.fromtimestamp(data['locked_at']).isoformat(),
+            'remaining_minutes': remaining_time // 60,
+            'ip': data['ip'],
+            'attempts': data['attempts']
+        }
+    
+    # Format recent failed attempts (last hour)
+    hour_ago = current_time - 3600
+    for ip, attempts in LOGIN_ATTEMPTS.items():
+        recent_attempts = [a for a in attempts if a['timestamp'] > hour_ago]
+        if recent_attempts:
+            security_data['recent_failed_attempts'][ip] = {
+                'count': len(recent_attempts),
+                'last_attempt': datetime.fromtimestamp(recent_attempts[-1]['timestamp']).isoformat(),
+                'usernames_attempted': list(set(a['username'] for a in recent_attempts))
+            }
+    
+    return jsonify(security_data)
+
+@app.route('/admin/unblock-ip/<ip>', methods=['POST'])
+@admin_required
+def unblock_ip(ip):
+    """Admin route to manually unblock a suspicious IP"""
+    try:
+        # Validate IP format
+        ipaddress.ip_address(ip)
+        
+        # Remove from suspicious IPs
+        if ip in SUSPICIOUS_IPS:
+            del SUSPICIOUS_IPS[ip]
+            log_security_event('IP_UNBLOCKED', f'Admin manually unblocked IP: {ip}', 'INFO')
+            flash(f'IP {ip} has been unblocked', 'success')
+        else:
+            flash(f'IP {ip} was not blocked', 'info')
+            
+        # Remove from login attempts
+        if ip in LOGIN_ATTEMPTS:
+            del LOGIN_ATTEMPTS[ip]
+            
+        # Remove from rate limits
+        if ip in RATE_LIMITS:
+            del RATE_LIMITS[ip]
+            
+    except Exception as e:
+        log_security_event('UNBLOCK_FAILED', f'Failed to unblock IP {ip}: {str(e)}', 'ERROR')
+        flash(f'Failed to unblock IP: {str(e)}', 'error')
+    
+    return redirect(request.referrer or url_for('security_status'))
+
+@app.route('/admin/unlock-account/<username>', methods=['POST'])
+@admin_required
+def unlock_account(username):
+    """Admin route to manually unlock an account"""
+    try:
+        if username in ACCOUNT_LOCKOUTS:
+            del ACCOUNT_LOCKOUTS[username]
+            log_security_event('ACCOUNT_UNLOCKED', f'Admin manually unlocked account: {username}', 'INFO')
+            flash(f'Account {username} has been unlocked', 'success')
+        else:
+            flash(f'Account {username} was not locked', 'info')
+            
+    except Exception as e:
+        log_security_event('UNLOCK_FAILED', f'Failed to unlock account {username}: {str(e)}', 'ERROR')
+        flash(f'Failed to unlock account: {str(e)}', 'error')
+    
+    return redirect(request.referrer or url_for('security_status'))
 
 @app.route('/activity-logs')
 @login_required
@@ -556,6 +894,7 @@ def settings():
 
 @app.route('/force-password-change', methods=['GET', 'POST'])
 @login_required
+@security_check_decorator
 def force_password_change():
     """Force password change for users with temporary passwords"""
     username = session.get('username')
