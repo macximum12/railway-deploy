@@ -483,12 +483,18 @@ def get_all_users():
         for user in users:
             user_dict = dict(user)
             # Map legacy roles for template compatibility
-            if user_dict['role'] == 'admin':
+            original_role = user_dict['role']
+            if original_role == 'admin':
                 user_dict['role'] = 'Administrator'
-            elif user_dict['role'] == 'editor':
+                print(f"📝 Mapped role 'admin' -> 'Administrator' for user {user_dict['username']}")
+            elif original_role == 'editor':
                 user_dict['role'] = 'Content Manager'
-            elif user_dict['role'] == 'viewer':
+                print(f"📝 Mapped role 'editor' -> 'Content Manager' for user {user_dict['username']}")
+            elif original_role == 'viewer':
                 user_dict['role'] = 'Viewer'
+                print(f"📝 Mapped role 'viewer' -> 'Viewer' for user {user_dict['username']}")
+            else:
+                print(f"📝 Role '{original_role}' for user {user_dict['username']} - no mapping needed")
             user_list.append(user_dict)
         
         return user_list
@@ -498,8 +504,25 @@ def get_all_users():
 
 def validate_password_requirements(password, role):
     """Validate password based on industry standards (NIST/OWASP)"""
-    requirements = PASSWORD_REQUIREMENTS.get(role, PASSWORD_REQUIREMENTS['viewer'])
+    # Map legacy roles to current role names for validation
+    role_mapping = {
+        'admin': 'administrator',
+        'editor': 'content_manager', 
+        'viewer': 'viewer'
+    }
+    
+    # If role is a legacy role, map it to the new format
+    if role in role_mapping:
+        role_key = role_mapping[role]
+    else:
+        # Convert current role format to key format
+        role_key = role.lower().replace(' ', '_')
+    
+    # Get requirements with fallback to viewer
+    requirements = PASSWORD_REQUIREMENTS.get(role_key, PASSWORD_REQUIREMENTS['viewer'])
     errors = []
+    
+    print(f"🔍 Validating password for role '{role}' -> key '{role_key}'")
     
     # Check minimum length
     if len(password) < requirements['min_length']:
@@ -556,7 +579,10 @@ def activate_user(username):
 def is_admin(username):
     """Check if user is admin (legacy support)"""
     user = get_user_from_db(username)
-    return user and user['role'] == 'Administrator'
+    if not user:
+        return False
+    # Handle both legacy and current role formats
+    return user['role'] in ['Administrator', 'admin']
 
 def has_permission(username, permission):
     """Check if user has a specific permission"""
@@ -1016,6 +1042,25 @@ def settings():
     username = session.get('username')
     user = get_user_from_db(username)
     
+    if not user:
+        flash('User not found', 'error')
+        return redirect(url_for('login'))
+    
+    # Create template-safe password requirements structure
+    template_password_requirements = {}
+    for role, data in ROLES.items():
+        key = role.lower().replace(' ', '_')
+        template_password_requirements[key] = data['password_requirements']
+        # Also add the role name as key for direct access
+        template_password_requirements[role] = data['password_requirements']
+        # Add legacy role mappings
+        if role == 'Administrator':
+            template_password_requirements['admin'] = data['password_requirements']
+        elif role == 'Content Manager':
+            template_password_requirements['editor'] = data['password_requirements']
+        elif role == 'Viewer':
+            template_password_requirements['viewer'] = data['password_requirements']
+    
     if request.method == 'POST':
         current_password = request.form.get('current_password')
         new_password = request.form.get('new_password')
@@ -1024,23 +1069,23 @@ def settings():
         # Validate inputs
         if not current_password or not new_password or not confirm_password:
             flash('All password fields are required', 'error')
-            return render_template('settings.html', user=user, password_requirements=PASSWORD_REQUIREMENTS)
+            return render_template('settings.html', user=user, password_requirements=template_password_requirements)
         
         if new_password != confirm_password:
             flash('New passwords do not match', 'error')
-            return render_template('settings.html', user=user, password_requirements=PASSWORD_REQUIREMENTS)
+            return render_template('settings.html', user=user, password_requirements=template_password_requirements)
         
         # Validate password requirements based on role
         is_valid, message = validate_password_requirements(new_password, user['role'])
         if not is_valid:
             flash(message, 'error')
-            return render_template('settings.html', user=user, password_requirements=PASSWORD_REQUIREMENTS)
+            return render_template('settings.html', user=user, password_requirements=template_password_requirements)
         
         # Verify current password
         if not user or user['password'] != current_password:
             flash('Current password is incorrect', 'error')
             log_activity('PASSWORD_CHANGE_FAILED', 'Incorrect current password provided')
-            return render_template('settings.html', user=user, password_requirements=PASSWORD_REQUIREMENTS)
+            return render_template('settings.html', user=user, password_requirements=template_password_requirements)
         
         # Update password
         update_user_password(username, new_password)
@@ -1050,7 +1095,7 @@ def settings():
         return redirect(url_for('settings'))
     
     log_activity('VIEW_SETTINGS', 'Accessed settings page')
-    return render_template('settings.html', user=user, password_requirements=PASSWORD_REQUIREMENTS)
+    return render_template('settings.html', user=user, password_requirements=template_password_requirements)
 
 @app.route('/force-password-change', methods=['GET', 'POST'])
 @login_required
