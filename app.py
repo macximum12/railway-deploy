@@ -374,7 +374,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
-        role TEXT DEFAULT 'Viewer' CHECK (role IN ('Administrator', 'Content Manager', 'Contributor', 'Viewer')),
+        role TEXT DEFAULT 'Viewer',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT,
         is_active BOOLEAN DEFAULT 1,
@@ -388,6 +388,21 @@ def init_db():
     cursor.execute("""
     INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)
     """, (DEFAULT_ADMIN['username'], DEFAULT_ADMIN['password'], 'Administrator'))
+    
+    # Only attempt role migration if no constraints prevent it
+    try:
+        # Test if we can insert a new role
+        cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", 
+                      ('test_migration', 'test', 'Administrator'))
+        cursor.execute("DELETE FROM users WHERE username = 'test_migration'")
+        
+        # If successful, migrate existing roles
+        cursor.execute("UPDATE users SET role = 'Administrator' WHERE role = 'admin'")
+        cursor.execute("UPDATE users SET role = 'Content Manager' WHERE role = 'editor'")  
+        cursor.execute("UPDATE users SET role = 'Viewer' WHERE role = 'viewer'")
+        print("✅ User roles migrated successfully")
+    except sqlite3.IntegrityError:
+        print("⚠️ Role migration skipped due to existing constraints - will handle via fallback logic")
     
     conn.commit()
     conn.close()
@@ -535,7 +550,16 @@ def has_permission(username, permission):
     
     user_role = user.get('role')
     if user_role not in ROLES:
-        return False
+        # Handle legacy roles or default to basic permissions
+        print(f"⚠️ User {username} has invalid role: {user_role}. Checking legacy permissions.")
+        if user_role == 'admin':
+            user_role = 'Administrator'
+        elif user_role == 'editor':
+            user_role = 'Content Manager'
+        elif user_role == 'viewer':
+            user_role = 'Viewer'
+        else:
+            return False  # Unknown role
     
     return permission in ROLES[user_role]['permissions']
 
@@ -564,7 +588,9 @@ def get_user_role_info(username):
     
     role = user.get('role')
     if role not in ROLES:
-        return None
+        # Fallback for users with old/invalid roles
+        print(f"⚠️ User {username} has invalid role: {role}. Defaulting to Viewer.")
+        role = 'Viewer'
     
     return {
         'role': role,
@@ -1205,31 +1231,50 @@ def toggle_user_status(username):
 def index():
     log_activity('VIEW_DASHBOARD', 'Accessed main dashboard')
     username = session.get('username')
+    
+    # Get user role info with fallback
     user_role_info = get_user_role_info(username)
+    if not user_role_info:
+        # Fallback for users with problematic roles
+        user_role_info = {
+            'role': 'Viewer',
+            'permissions': ROLES['Viewer']['permissions'],
+            'password_requirements': ROLES['Viewer']['password_requirements']
+        }
     
     conn = get_db_connection()
     
     # Filter findings based on permissions
-    if has_permission(username, 'read'):
-        # Can see all findings
-        findings = conn.execute('''
-            SELECT id, audit_reference, audit_report, status, priority, 
-                   target_date, person_responsible, created_at, created_by
-            FROM audit_findings 
-            ORDER BY created_at DESC
-        ''').fetchall()
-    else:
-        # Can only see their own findings (shouldn't happen with current roles, but future-proof)
-        findings = conn.execute('''
-            SELECT id, audit_reference, audit_report, status, priority, 
-                   target_date, person_responsible, created_at, created_by
-            FROM audit_findings 
-            WHERE created_by = ?
-            ORDER BY created_at DESC
-        ''', (username,)).fetchall()
+    try:
+        if has_permission(username, 'read'):
+            # Can see all findings
+            findings = conn.execute('''
+                SELECT id, audit_reference, audit_report, status, priority, 
+                       target_date, person_responsible, created_at, created_by
+                FROM audit_findings 
+                ORDER BY created_at DESC
+            ''').fetchall()
+        else:
+            # Can only see their own findings (shouldn't happen with current roles, but future-proof)
+            findings = conn.execute('''
+                SELECT id, audit_reference, audit_report, status, priority, 
+                       target_date, person_responsible, created_at, created_by
+                FROM audit_findings 
+                WHERE created_by = ?
+                ORDER BY created_at DESC
+            ''', (username,)).fetchall()
+    except Exception as e:
+        print(f"❌ Error fetching findings: {e}")
+        findings = []
     
     conn.close()
     return render_template('index.html', findings=findings, user_role_info=user_role_info)
+
+@app.route('/dashboard')
+@login_required  
+def dashboard():
+    """Dashboard route alias for index"""
+    return redirect(url_for('index'))
 
 @app.route('/findings')
 @login_required
