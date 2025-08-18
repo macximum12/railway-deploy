@@ -1,0 +1,536 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Internal Audit Tracker{% endblock %}
+
+{% block content %}
+<div class="min-h-full bg-gray-900">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Header with Analytics Title -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-white">Audit Findings Dashboard</h1>
+                    <p class="mt-1 text-sm text-gray-300">
+                        For internal use only
+                    </p>
+                </div>
+                <div class="flex space-x-3">
+                    <a href="{{ url_for('add_finding') }}" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        <svg class="mr-2 -ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        Add New Finding
+                    </a>
+                    <a href="{{ url_for('findings') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="mr-2 -ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                        </svg>
+                        View All Findings
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Overview -->
+        <div class="mb-8">
+            <div class="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 bg-green-900 rounded-lg p-2">
+                            <svg class="h-6 w-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                        </div>
+                        <h2 class="ml-3 text-lg font-medium text-gray-100">Statistics Overview</h2>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <label for="statsYear" class="text-sm font-medium text-gray-200">Stats Year:</label>
+                        <select id="statsYear" onchange="updateStatistics()" class="bg-gray-600 border-gray-500 text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <option value="2025" selected>2025</option>
+                            <option value="2024">2024</option>
+                            <option value="2023">2023</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Clickable Status Cards -->
+                <div id="statusCards" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    <!-- Completed Card -->
+                    <div onclick="showFindingsByStatus('Completed')" class="bg-gray-600 rounded-lg border border-gray-500 p-6 cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-green-400">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-green-300">COMPLETED</p>
+                                <p id="completedCount" class="text-3xl font-bold text-gray-100">0</p>
+                                <p id="completedChange" class="text-xs text-green-300">0% from last year</p>
+                            </div>
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-green-900 rounded-lg flex items-center justify-center">
+                                    <svg class="h-6 w-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- In-Progress Card -->
+                    <div onclick="showFindingsByStatus('In-Progress')" class="bg-gray-600 rounded-lg border border-gray-500 p-6 cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-blue-400">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-blue-300">IN-PROGRESS</p>
+                                <p id="inProgressCount" class="text-3xl font-bold text-gray-100">0</p>
+                                <p id="inProgressChange" class="text-xs text-blue-300">0% from last year</p>
+                            </div>
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-blue-900 rounded-lg flex items-center justify-center">
+                                    <svg class="h-6 w-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Delayed Card -->
+                    <div onclick="showFindingsByStatus('Delayed')" class="bg-gray-600 rounded-lg border border-gray-500 p-6 cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-red-400">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-red-300">DELAYED</p>
+                                <p id="delayedCount" class="text-3xl font-bold text-gray-100">0</p>
+                                <p id="delayedChange" class="text-xs text-red-300">0% from last year</p>
+                            </div>
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-red-900 rounded-lg flex items-center justify-center">
+                                    <svg class="h-6 w-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Closed Card -->
+                    <div onclick="showFindingsByStatus('Closed')" class="bg-gray-600 rounded-lg border border-gray-500 p-6 cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-gray-400">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-200">CLOSED</p>
+                                <p id="closedCount" class="text-3xl font-bold text-gray-100">0</p>
+                                <p id="closedChange" class="text-xs text-gray-200">0% from last year</p>
+                            </div>
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center">
+                                    <svg class="h-6 w-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Period -->
+        <div class="mb-8">
+            <div class="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 bg-purple-900 rounded-lg p-2">
+                            <svg class="h-6 w-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <h2 class="ml-3 text-lg font-medium text-gray-100">Analysis Period</h2>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-2">
+                            <label for="primaryYear" class="text-sm font-medium text-gray-200">Primary Year:</label>
+                            <select id="primaryYear" onchange="updateCharts()" class="bg-gray-600 border-gray-500 text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <option value="2025" selected>2025</option>
+                                <option value="2024">2024</option>
+                                <option value="2023">2023</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <label for="compareYear" class="text-sm font-medium text-gray-200">Compare With:</label>
+                            <select id="compareYear" onchange="updateCharts()" class="bg-gray-600 border-gray-500 text-gray-100 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <option value="2024" selected>2024</option>
+                                <option value="2023">2023</option>
+                                <option value="2022">2022</option>
+                            </select>
+                        </div>
+                        <button onclick="updateCharts()" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Update
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Year-on-Year Comparison Chart -->
+            <div class="bg-gray-800 rounded-lg shadow-sm border border-gray-700">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-blue-900 rounded-lg p-2">
+                                <svg class="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="ml-3 text-lg font-medium text-gray-100">Year-on-Year Comparison</h3>
+                        </div>
+                        <p id="comparisonSubtitle" class="text-sm text-gray-300">2025 vs 2024</p>
+                    </div>
+                    <div class="h-64">
+                        <canvas id="comparisonChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Distribution Chart -->
+            <div class="bg-gray-800 rounded-lg shadow-sm border border-gray-700">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-pink-900 rounded-lg p-2">
+                                <svg class="h-5 w-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="ml-3 text-lg font-medium text-gray-100">Status Distribution</h3>
+                        </div>
+                        <p id="distributionYear" class="text-sm text-gray-300">2025</p>
+                    </div>
+                    <div class="h-64">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Findings -->
+        <div class="bg-gray-800 shadow-sm rounded-lg border border-gray-700">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-100 mb-4">Recent Findings</h3>
+                
+                {% if findings %}
+                <div class="overflow-hidden shadow ring-1 ring-gray-600 ring-opacity-50 md:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-500">
+                        <thead class="bg-gray-600">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-200 uppercase tracking-wider">Audit Reference</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-200 uppercase tracking-wider">Report</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-200 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-200 uppercase tracking-wider">Priority</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-200 uppercase tracking-wider">Responsible</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-200 uppercase tracking-wider">Target Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-200 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-gray-700 divide-y divide-gray-500">
+                            {% for finding in findings[:10] %}
+                            <tr class="hover:bg-gray-600">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
+                                    {{ finding.audit_reference }}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-200">
+                                    <div class="max-w-xs truncate">{{ finding.audit_report }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                        {{ 'bg-green-900 text-green-300' if finding.status == 'Completed' 
+                                           else 'bg-blue-900 text-blue-300' if finding.status == 'In-Progress' 
+                                           else 'bg-red-900 text-red-300' if finding.status == 'Delayed' 
+                                           else 'bg-gray-700 text-gray-300' }}">
+                                        {{ finding.status }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                        {{ 'bg-red-900 text-red-300' if finding.priority == 'High' 
+                                           else 'bg-yellow-900 text-yellow-300' if finding.priority == 'Medium' 
+                                           else 'bg-green-900 text-green-300' }}">
+                                        {{ finding.priority or 'Low' }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                                    {{ finding.person_responsible or 'Not assigned' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                    {{ finding.target_date or 'No date set' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <div class="flex space-x-2">
+                                        <a href="{{ url_for('edit_finding', id=finding.id) }}" class="text-blue-400 hover:text-blue-300">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                            </svg>
+                                        </a>
+                                        <a href="{{ url_for('delete_finding', id=finding.id) }}" class="text-red-400 hover:text-red-300" onclick="return confirm('Are you sure you want to delete this finding?')">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {% if findings|length > 10 %}
+                <div class="mt-4 text-center">
+                    <a href="{{ url_for('findings') }}" class="text-blue-400 hover:text-blue-300 text-sm font-medium">
+                        View all {{ findings|length }} findings →
+                    </a>
+                </div>
+                {% endif %}
+                
+                {% else %}
+                <!-- Empty State -->
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-300">No findings</h3>
+                    <p class="mt-1 text-sm text-gray-400">Get started by creating a new audit finding.</p>
+                </div>
+                {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Findings Modal -->
+<div id="findingsModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 overflow-y-auto h-full w-full hidden">
+    <div class="relative top-20 mx-auto p-5 border border-gray-700 max-w-4xl shadow-lg rounded-md bg-gray-800">
+        <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="modalTitle" class="text-lg font-medium text-white">Status Findings</h3>
+                <button onclick="closeFindingsModal()" class="text-gray-400 hover:text-gray-300">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div id="modalContent" class="mt-4">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Chart instances
+let comparisonChart = null;
+let statusChart = null;
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    updateStatistics();
+    updateCharts();
+});
+
+// Update statistics cards
+async function updateStatistics() {
+    const year = document.getElementById('statsYear').value;
+    
+    try {
+        const response = await fetch(`/api/chart-data/${year}`);
+        const data = await response.json();
+        
+        // Update card values
+        document.getElementById('completedCount').textContent = data['Completed'] || 0;
+        document.getElementById('inProgressCount').textContent = data['In-Progress'] || 0;
+        document.getElementById('delayedCount').textContent = data['Delayed'] || 0;
+        document.getElementById('closedCount').textContent = data['Closed'] || 0;
+        
+        // For now, set static percentage changes (in production, calculate from previous year)
+        document.getElementById('completedChange').textContent = '+15% from last year';
+        document.getElementById('inProgressChange').textContent = '+37% from last year';
+        document.getElementById('delayedChange').textContent = '0% from last year';
+        document.getElementById('closedChange').textContent = '0% from last year';
+        
+    } catch (error) {
+        console.error('Error fetching statistics:', error);
+    }
+}
+
+// Update charts
+async function updateCharts() {
+    const primaryYear = document.getElementById('primaryYear').value;
+    const compareYear = document.getElementById('compareYear').value;
+    
+    // Update subtitles
+    document.getElementById('comparisonSubtitle').textContent = `${primaryYear} vs ${compareYear}`;
+    document.getElementById('distributionYear').textContent = primaryYear;
+    
+    try {
+        // Fetch data for both years
+        const [primaryData, compareData] = await Promise.all([
+            fetch(`/api/chart-data/${primaryYear}`).then(r => r.json()),
+            fetch(`/api/chart-data/${compareYear}`).then(r => r.json())
+        ]);
+        
+        // Update comparison chart
+        updateComparisonChart(primaryData, compareData, primaryYear, compareYear);
+        
+        // Update status distribution chart
+        updateStatusChart(primaryData);
+        
+    } catch (error) {
+        console.error('Error updating charts:', error);
+    }
+}
+
+// Update comparison chart
+function updateComparisonChart(primaryData, compareData, primaryYear, compareYear) {
+    const ctx = document.getElementById('comparisonChart').getContext('2d');
+    
+    if (comparisonChart) {
+        comparisonChart.destroy();
+    }
+    
+    comparisonChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Completed', 'In-Progress', 'Delayed', 'Closed'],
+            datasets: [
+                {
+                    label: primaryYear,
+                    data: [primaryData['Completed'], primaryData['In-Progress'], primaryData['Delayed'], primaryData['Closed']],
+                    backgroundColor: '#3B82F6',
+                    borderColor: '#1D4ED8',
+                    borderWidth: 1
+                },
+                {
+                    label: compareYear,
+                    data: [compareData['Completed'], compareData['In-Progress'], compareData['Delayed'], compareData['Closed']],
+                    backgroundColor: '#6B7280',
+                    borderColor: '#374151',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 20
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Update status distribution chart
+function updateStatusChart(data) {
+    const ctx = document.getElementById('statusChart').getContext('2d');
+    
+    if (statusChart) {
+        statusChart.destroy();
+    }
+    
+    statusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Completed', 'In-Progress', 'Delayed', 'Closed'],
+            datasets: [{
+                data: [data['Completed'], data['In-Progress'], data['Delayed'], data['Closed']],
+                backgroundColor: ['#10B981', '#3B82F6', '#EF4444', '#6B7280'],
+                borderColor: ['#059669', '#1D4ED8', '#DC2626', '#374151'],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+}
+
+// Show findings by status
+async function showFindingsByStatus(status) {
+    const year = document.getElementById('statsYear').value;
+    
+    try {
+        const response = await fetch(`/api/findings-by-status/${status}/${year}`);
+        const findings = await response.json();
+        
+        document.getElementById('modalTitle').textContent = `${status} Findings (${year})`;
+        
+        let content = '<div class="overflow-x-auto">';
+        content += '<table class="min-w-full divide-y divide-gray-600">';
+        content += '<thead class="bg-gray-700">';
+        content += '<tr>';
+        content += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Audit Reference</th>';
+        content += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Report</th>';
+        content += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Priority</th>';
+        content += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Responsible</th>';
+        content += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Target Date</th>';
+        content += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>';
+        content += '</tr>';
+        content += '</thead>';
+        content += '<tbody class="bg-gray-800 divide-y divide-gray-600">';
+        
+        if (findings.length > 0) {
+            findings.forEach(finding => {
+                content += '<tr class="hover:bg-gray-700">';
+                content += `<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">${finding.audit_reference || 'N/A'}</td>`;
+                content += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${(finding.audit_report || 'N/A').substring(0, 30)}...</td>`;
+                content += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${finding.priority || 'Not Set'}</td>`;
+                content += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${finding.person_responsible || 'Unassigned'}</td>`;
+                content += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${finding.target_date || 'No target date'}</td>`;
+                content += `<td class="px-6 py-4 whitespace-nowrap text-sm font-medium">`;
+                content += `<a href="/edit/${finding.id}" class="text-blue-400 hover:text-blue-300">Edit</a>`;
+                content += `</td>`;
+                content += '</tr>';
+            });
+        } else {
+            content += '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-400">No findings found</td></tr>';
+        }
+        
+        content += '</tbody></table></div>';
+        
+        document.getElementById('modalContent').innerHTML = content;
+        document.getElementById('findingsModal').classList.remove('hidden');
+        
+    } catch (error) {
+        console.error('Error fetching findings:', error);
+    }
+}
+
+// Close findings modal
+function closeFindingsModal() {
+    document.getElementById('findingsModal').classList.add('hidden');
+}
+
+// Close modal when clicking outside
+document.getElementById('findingsModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeFindingsModal();
+    }
+});
+</script>
+{% endblock %}

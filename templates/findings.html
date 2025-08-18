@@ -1,0 +1,436 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Findings - Internal Audit Tracker{% endblock %}
+
+{% block content %}
+<div class="min-h-full">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Audit Findings</h1>
+                    <p class="mt-1 text-sm text-gray-500">
+                        Comprehensive view of all audit findings and their statuses.
+                    </p>
+                </div>
+                <div class="flex space-x-3">
+                    <a href="{{ url_for('export_csv') }}" 
+                       class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        <svg class="mr-2 -ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Export CSV
+                    </a>
+                    <a href="{{ url_for('add_finding') }}" 
+                       class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        <svg class="mr-2 -ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        Add Finding
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="mb-6 bg-white shadow-sm rounded-lg border border-gray-200 p-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                    <label for="status-filter" class="block text-sm font-medium text-gray-700">Status</label>
+                    <select id="status-filter" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <option value="">All Statuses</option>
+                        <option value="Completed">Completed</option>
+                        <option value="In-Progress">In Progress</option>
+                        <option value="Delayed">Delayed</option>
+                        <option value="Closed">Closed</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="priority-filter" class="block text-sm font-medium text-gray-700">Priority</label>
+                    <select id="priority-filter" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <option value="">All Priorities</option>
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="audit-ref-filter" class="block text-sm font-medium text-gray-700">Audit Reference</label>
+                    <select id="audit-ref-filter" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <option value="">All References</option>
+                        <option value="24-07">24-07</option>
+                        <option value="25-05">25-05</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="search-input" class="block text-sm font-medium text-gray-700">Search</label>
+                    <div class="mt-1 relative rounded-md shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                        <input id="search-input" type="text" class="pl-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Search findings...">
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button id="clear-filters" type="button" class="text-sm text-gray-500 hover:text-gray-700">Clear all filters</button>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <!-- Total Findings -->
+            <div class="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Total Findings</dt>
+                                <dd class="text-lg font-medium text-gray-900">{{ findings|length }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Completed -->
+            <div class="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Completed</dt>
+                                <dd class="text-lg font-medium text-gray-900">
+                                    {{ findings|selectattr("status", "equalto", "Completed")|list|length }}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- In Progress -->
+            <div class="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">In Progress</dt>
+                                <dd class="text-lg font-medium text-gray-900">
+                                    {{ findings|selectattr("status", "equalto", "In-Progress")|list|length }}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- High Priority -->
+            <div class="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.116 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">High Priority</dt>
+                                <dd class="text-lg font-medium text-gray-900">
+                                    {{ findings|selectattr("priority", "equalto", "High")|list|length }}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Findings Table -->
+        <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">All Findings</h3>
+                
+                {% if findings %}
+                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-300" id="findings-table">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(0)">
+                                    <div class="flex items-center space-x-1">
+                                        <span>Audit Reference</span>
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                                        </svg>
+                                    </div>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Audit Report</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(2)">
+                                    <div class="flex items-center space-x-1">
+                                        <span>Status</span>
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                                        </svg>
+                                    </div>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable(3)">
+                                    <div class="flex items-center space-x-1">
+                                        <span>Priority</span>
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                                        </svg>
+                                    </div>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Responsible</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for finding in findings %}
+                            <tr class="hover:bg-gray-50 finding-row"
+                                data-status="{{ finding.status or '' }}"
+                                data-priority="{{ finding.priority or '' }}"
+                                data-audit-ref="{{ finding.audit_reference or '' }}"
+                                data-search="{{ (finding.audit_reference ~ ' ' ~ finding.audit_report ~ ' ' ~ finding.observations ~ ' ' ~ finding.person_responsible)|lower }}">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {{ finding.audit_reference }}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-900">
+                                    <div class="max-w-xs">
+                                        <p class="truncate" title="{{ finding.audit_report }}">{{ finding.audit_report }}</p>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                        {{ 'bg-green-100 text-green-800' if finding.status == 'Completed' 
+                                           else 'bg-blue-100 text-blue-800' if finding.status == 'In-Progress' 
+                                           else 'bg-red-100 text-red-800' if finding.status == 'Delayed' 
+                                           else 'bg-gray-100 text-gray-800' }}">
+                                        {% if finding.status == 'Completed' %}
+                                            <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                            </svg>
+                                        {% elif finding.status == 'In-Progress' %}
+                                            <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                                            </svg>
+                                        {% elif finding.status == 'Delayed' %}
+                                            <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                            </svg>
+                                        {% endif %}
+                                        {{ finding.status or 'Unknown' }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                        {{ 'bg-red-100 text-red-800' if finding.priority == 'High' 
+                                           else 'bg-yellow-100 text-yellow-800' if finding.priority == 'Medium' 
+                                           else 'bg-green-100 text-green-800' }}">
+                                        {{ finding.priority or 'Low' }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <div class="flex items-center">
+                                        <div class="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center mr-2">
+                                            <svg class="h-3 w-3 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+                                            </svg>
+                                        </div>
+                                        {{ finding.person_responsible or 'Not assigned' }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {% if finding.target_date %}
+                                        <div class="flex items-center">
+                                            <svg class="mr-1 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                            </svg>
+                                            {{ finding.target_date }}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-gray-400">No date set</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <div class="flex space-x-2">
+                                        <a href="{{ url_for('edit_finding', id=finding.id) }}" class="text-indigo-600 hover:text-indigo-900" title="Edit">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                            </svg>
+                                        </a>
+                                        <button onclick="viewFinding({{ finding.id }})" class="text-green-600 hover:text-green-900" title="View Details">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                            </svg>
+                                        </button>
+                                        <a href="{{ url_for('delete_finding', id=finding.id) }}" class="text-red-600 hover:text-red-900" onclick="return confirm('Are you sure you want to delete this finding?')" title="Delete">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {% else %}
+                <!-- Empty State -->
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No findings</h3>
+                    <p class="mt-1 text-sm text-gray-500">Get started by creating a new audit finding.</p>
+                    <div class="mt-6">
+                        <a href="{{ url_for('add_finding') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            Add Finding
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Finding Modal -->
+<div id="findingModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900" id="modalTitle">Finding Details</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="modalContent" class="text-sm text-gray-700">
+                <!-- Content will be loaded here -->
+            </div>
+            <div class="flex justify-end mt-6">
+                <button onclick="closeModal()" class="px-4 py-2 bg-gray-300 text-gray-700 text-base font-medium rounded-md shadow-sm hover:bg-gray-400">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Filtering functionality
+function filterFindings() {
+    const statusFilter = document.getElementById('status-filter').value.toLowerCase();
+    const priorityFilter = document.getElementById('priority-filter').value.toLowerCase();
+    const auditRefFilter = document.getElementById('audit-ref-filter').value.toLowerCase();
+    const searchInput = document.getElementById('search-input').value.toLowerCase();
+    
+    const rows = document.querySelectorAll('.finding-row');
+    
+    rows.forEach(row => {
+        const status = row.dataset.status.toLowerCase();
+        const priority = row.dataset.priority.toLowerCase();
+        const auditRef = row.dataset.auditRef.toLowerCase();
+        const searchData = row.dataset.search;
+        
+        const statusMatch = !statusFilter || status === statusFilter;
+        const priorityMatch = !priorityFilter || priority === priorityFilter;
+        const auditRefMatch = !auditRefFilter || auditRef === auditRefFilter;
+        const searchMatch = !searchInput || searchData.includes(searchInput);
+        
+        if (statusMatch && priorityMatch && auditRefMatch && searchMatch) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Add event listeners for filters
+document.getElementById('status-filter').addEventListener('change', filterFindings);
+document.getElementById('priority-filter').addEventListener('change', filterFindings);
+document.getElementById('audit-ref-filter').addEventListener('change', filterFindings);
+document.getElementById('search-input').addEventListener('input', filterFindings);
+
+// Clear filters
+document.getElementById('clear-filters').addEventListener('click', function() {
+    document.getElementById('status-filter').value = '';
+    document.getElementById('priority-filter').value = '';
+    document.getElementById('audit-ref-filter').value = '';
+    document.getElementById('search-input').value = '';
+    filterFindings();
+});
+
+// Table sorting
+function sortTable(columnIndex) {
+    const table = document.getElementById('findings-table');
+    const tbody = table.tBodies[0];
+    const rows = Array.from(tbody.rows);
+    
+    rows.sort((a, b) => {
+        const aText = a.cells[columnIndex].textContent.trim();
+        const bText = b.cells[columnIndex].textContent.trim();
+        return aText.localeCompare(bText);
+    });
+    
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+// Modal functionality
+function viewFinding(findingId) {
+    // In a real application, you'd fetch the finding details via AJAX
+    // For now, we'll show a placeholder
+    document.getElementById('modalTitle').textContent = `Finding #${findingId}`;
+    document.getElementById('modalContent').innerHTML = `
+        <div class="space-y-4">
+            <p><strong>Finding ID:</strong> ${findingId}</p>
+            <p><em>Detailed finding information would be loaded here via AJAX call to the server.</em></p>
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                <p class="text-sm text-yellow-700">This is a placeholder. In the full implementation, clicking "View Details" would fetch and display complete finding information.</p>
+            </div>
+        </div>
+    `;
+    document.getElementById('findingModal').classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('findingModal').classList.add('hidden');
+}
+
+// Close modal when clicking outside
+document.getElementById('findingModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeModal();
+    }
+});
+</script>
+{% endblock %}

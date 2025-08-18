@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+
+{% block title %}Add Finding - Internal Audit Tracker{% endblock %}
+
+{% block content %}
+<div class="min-h-full">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center">
+                <a href="{{ url_for('index') }}" class="mr-4 text-gray-400 hover:text-gray-600">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Add New Finding</h1>
+                    <p class="mt-1 text-sm text-gray-500">
+                        Create a new audit finding record.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <form method="POST" class="space-y-8">
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-4 py-5 sm:p-6">
+                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                        <!-- Audit Reference -->
+                        <div class="sm:col-span-2">
+                            <label for="audit_reference" class="block text-sm font-medium text-gray-700">
+                                Audit Reference *
+                            </label>
+                            <div class="mt-1">
+                                <select id="audit_reference" name="audit_reference" required onchange="toggleAuditReport()"
+                                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    <option value="">Select audit reference</option>
+                                    <option value="24-07">24-07</option>
+                                    <option value="25-05">25-05</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Audit Report -->
+                        <div class="sm:col-span-2">
+                            <label for="audit_report" class="block text-sm font-medium text-gray-700">
+                                Audit Report *
+                            </label>
+                            <div class="mt-1" id="audit_report_select_div">
+                                <select id="audit_report" name="audit_report" required
+                                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    <option value="">Select audit report</option>
+                                    <option value="Internal Audit Report">Internal Audit Report</option>
+                                    <option value="Compliance Review">Compliance Review</option>
+                                    <option value="Risk Assessment">Risk Assessment</option>
+                                    <option value="Operational Audit">Operational Audit</option>
+                                    <option value="Financial Audit">Financial Audit</option>
+                                </select>
+                            </div>
+                            <div class="mt-1 hidden" id="audit_report_custom_div">
+                                <input id="audit_report_custom" name="audit_report_custom" type="text"
+                                       class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                       placeholder="Enter custom audit report name">
+                            </div>
+                        </div>
+
+                        <!-- Observations -->
+                        <div class="sm:col-span-2">
+                            <label for="observations" class="block text-sm font-medium text-gray-700">
+                                Observations *
+                            </label>
+                            <div class="mt-1">
+                                <textarea id="observations" name="observations" rows="3" required
+                                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                          placeholder="Describe the key observations from the audit"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Observation Details -->
+                        <div class="sm:col-span-2">
+                            <label for="observation_details" class="block text-sm font-medium text-gray-700">
+                                Observation Details
+                            </label>
+                            <div class="mt-1">
+                                <textarea id="observation_details" name="observation_details" rows="3"
+                                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                          placeholder="Additional details about the observations (optional)"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit Information -->
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Audit Information</h3>
+                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                        <!-- Report Date -->
+                        <div>
+                            <label for="report_date" class="block text-sm font-medium text-gray-700">
+                                Report Date
+                            </label>
+                            <div class="mt-1">
+                                <input id="report_date" name="report_date" type="date"
+                                       class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <!-- Priority -->
+                        <div>
+                            <label for="priority" class="block text-sm font-medium text-gray-700">
+                                Priority
+                            </label>
+                            <div class="mt-1">
+                                <select id="priority" name="priority"
+                                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    <option value="">Select priority</option>
+                                    <option value="High">High</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Recommendation -->
+                        <div class="sm:col-span-2">
+                            <label for="recommendation" class="block text-sm font-medium text-gray-700">
+                                Recommendation
+                            </label>
+                            <div class="mt-1">
+                                <textarea id="recommendation" name="recommendation" rows="3"
+                                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                          placeholder="Recommended actions to address the findings"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Management Response -->
+                        <div class="sm:col-span-2">
+                            <label for="management_response" class="block text-sm font-medium text-gray-700">
+                                Management Response
+                            </label>
+                            <div class="mt-1">
+                                <textarea id="management_response" name="management_response" rows="3"
+                                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                          placeholder="Management's response to the findings"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Implementation Details -->
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Implementation Details</h3>
+                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                        <!-- Person Responsible -->
+                        <div>
+                            <label for="person_responsible" class="block text-sm font-medium text-gray-700">
+                                Person Responsible
+                            </label>
+                            <div class="mt-1">
+                                <input id="person_responsible" name="person_responsible" type="text"
+                                       class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                       placeholder="Name of responsible person">
+                            </div>
+                        </div>
+
+                        <!-- Department -->
+                        <div>
+                            <label for="department" class="block text-sm font-medium text-gray-700">
+                                Department
+                            </label>
+                            <div class="mt-1">
+                                <input id="department" name="department" type="text"
+                                       class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                       placeholder="Department name">
+                            </div>
+                        </div>
+
+                        <!-- Status -->
+                        <div>
+                            <label for="status" class="block text-sm font-medium text-gray-700">
+                                Status
+                            </label>
+                            <div class="mt-1">
+                                <select id="status" name="status" onchange="toggleTargetDate()"
+                                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    <option value="">Select status</option>
+                                    <option value="In-Progress">In Progress</option>
+                                    <option value="Completed">Completed</option>
+                                    <option value="Delayed">Delayed</option>
+                                    <option value="Closed">Closed</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Target Date -->
+                        <div id="target_date_div">
+                            <label for="target_date" class="block text-sm font-medium text-gray-700">
+                                Target Date
+                            </label>
+                            <div class="mt-1">
+                                <input id="target_date" name="target_date" type="date"
+                                       class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <!-- Revised Target Date -->
+                        <div>
+                            <label for="revised_target_date" class="block text-sm font-medium text-gray-400">
+                                Revised Target Date
+                            </label>
+                            <div class="mt-1">
+                                <input id="revised_target_date" name="revised_target_date" type="date" disabled
+                                       class="block w-full border-gray-200 rounded-md shadow-sm bg-gray-100 text-gray-400 cursor-not-allowed sm:text-sm"
+                                       title="Not applicable for new findings">
+                            </div>
+                            <p class="mt-1 text-xs text-gray-400">Not applicable for new findings</p>
+                        </div>
+
+                        <!-- Completion Date -->
+                        <div>
+                            <label for="completion_date" class="block text-sm font-medium text-gray-400">
+                                Completion Date
+                            </label>
+                            <div class="mt-1">
+                                <input id="completion_date" name="completion_date" type="date" disabled
+                                       class="block w-full border-gray-200 rounded-md shadow-sm bg-gray-100 text-gray-400 cursor-not-allowed sm:text-sm"
+                                       title="Not applicable for new findings">
+                            </div>
+                            <p class="mt-1 text-xs text-gray-400">Not applicable for new findings</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Information -->
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Additional Information</h3>
+                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                        <!-- Validated -->
+                        <div>
+                            <label for="validated" class="block text-sm font-medium text-gray-700">
+                                Validated
+                            </label>
+                            <div class="mt-1">
+                                <select id="validated" name="validated"
+                                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    <option value="">Select validation status</option>
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
+                                    <option value="Pending">Pending</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Testing Procedures -->
+                        <div class="sm:col-span-2">
+                            <label for="testing_procedures" class="block text-sm font-medium text-gray-700">
+                                Testing Procedures
+                            </label>
+                            <div class="mt-1">
+                                <textarea id="testing_procedures" name="testing_procedures" rows="3"
+                                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                          placeholder="Testing procedures used to validate the finding"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Comments -->
+                        <div class="sm:col-span-2">
+                            <label for="comments" class="block text-sm font-medium text-gray-700">
+                                Comments
+                            </label>
+                            <div class="mt-1">
+                                <textarea id="comments" name="comments" rows="3"
+                                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                          placeholder="Additional comments or notes"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex justify-end space-x-3">
+                <a href="{{ url_for('index') }}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <svg class="mr-2 -ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <svg class="mr-2 -ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Add Finding
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleAuditReport() {
+    const auditRef = document.getElementById('audit_reference').value;
+    const selectDiv = document.getElementById('audit_report_select_div');
+    const customDiv = document.getElementById('audit_report_custom_div');
+    const selectField = document.getElementById('audit_report');
+    const customField = document.getElementById('audit_report_custom');
+    
+    if (auditRef === '24-07' || auditRef === '25-05') {
+        selectDiv.classList.add('hidden');
+        customDiv.classList.remove('hidden');
+        selectField.required = false;
+        customField.required = true;
+    } else {
+        selectDiv.classList.remove('hidden');
+        customDiv.classList.add('hidden');
+        selectField.required = true;
+        customField.required = false;
+    }
+}
+
+function toggleTargetDate() {
+    const status = document.getElementById('status').value;
+    const targetDateDiv = document.getElementById('target_date_div');
+    const targetDateField = document.getElementById('target_date');
+    
+    if (status === 'Completed') {
+        targetDateDiv.style.opacity = '0.5';
+        targetDateField.disabled = true;
+        targetDateField.value = '';
+    } else {
+        targetDateDiv.style.opacity = '1';
+        targetDateField.disabled = false;
+    }
+}
+
+// Auto-save functionality (optional)
+function autoSave() {
+    const formData = new FormData(document.querySelector('form'));
+    const data = {};
+    formData.forEach((value, key) => {
+        data[key] = value;
+    });
+    
+    // Store in localStorage as a backup
+    localStorage.setItem('audit_finding_draft', JSON.stringify(data));
+}
+
+// Load draft if available
+document.addEventListener('DOMContentLoaded', function() {
+    const draft = localStorage.getItem('audit_finding_draft');
+    if (draft) {
+        const data = JSON.parse(draft);
+        Object.keys(data).forEach(key => {
+            const field = document.getElementById(key) || document.querySelector(`[name="${key}"]`);
+            if (field && data[key]) {
+                field.value = data[key];
+            }
+        });
+    }
+    
+    // Set up auto-save on form change
+    document.querySelector('form').addEventListener('change', autoSave);
+    
+    // Clear draft on successful submission
+    document.querySelector('form').addEventListener('submit', function() {
+        localStorage.removeItem('audit_finding_draft');
+    });
+});
+
+// Set today's date as default for report date
+document.getElementById('report_date').valueAsDate = new Date();
+</script>
+{% endblock %}

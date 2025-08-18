@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-900">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Internal Audit Tracker{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'audit-blue': '#3b82f6',
+                        'audit-dark': '#1f2937',
+                        'audit-gray': '#6b7280',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Heroicons for beautiful icons -->
+    <script src="https://unpkg.com/heroicons@2.0.18/24/outline/index.js" type="module"></script>
+    <script src="https://unpkg.com/heroicons@2.0.18/24/solid/index.js" type="module"></script>
+    
+    <!-- Additional styles -->
+    <style>
+        .hero-icon {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+        .hero-icon-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+        .hero-icon-lg {
+            width: 2rem;
+            height: 2rem;
+        }
+    </style>
+</head>
+<body class="h-full bg-gray-900">
+    {% if session.logged_in %}
+    <!-- Navigation -->
+    <nav class="bg-gray-800 shadow-sm border-b border-gray-700">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <svg class="h-8 w-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <span class="ml-2 text-xl font-semibold text-white">Audit Tracker</span>
+                    </div>
+                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        <a href="{{ url_for('index') }}" class="inline-flex items-center px-1 pt-1 text-sm font-medium {{ 'border-b-2 border-blue-400 text-blue-400' if request.endpoint == 'index' else 'border-b-2 border-transparent text-gray-300 hover:border-gray-400 hover:text-white' }}">
+                            <svg class="mr-2 hero-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v6H8V5z"></path>
+                            </svg>
+                            Dashboard
+                        </a>
+                        <a href="{{ url_for('findings') }}" class="inline-flex items-center px-1 pt-1 text-sm font-medium {{ 'border-b-2 border-blue-400 text-blue-400' if request.endpoint == 'findings' else 'border-b-2 border-transparent text-gray-300 hover:border-gray-400 hover:text-white' }}">
+                            <svg class="mr-2 hero-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                            </svg>
+                            Findings
+                        </a>
+                        <a href="{{ url_for('add_finding') }}" class="inline-flex items-center px-1 pt-1 text-sm font-medium {{ 'border-b-2 border-audit-blue text-audit-blue' if request.endpoint == 'add_finding' else 'border-b-2 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700' }}">
+                            <svg class="mr-2 hero-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            Add Finding
+                        </a>
+                        <a href="{{ url_for('activity_logs') }}" class="inline-flex items-center px-1 pt-1 text-sm font-medium {{ 'border-b-2 border-audit-blue text-audit-blue' if request.endpoint == 'activity_logs' else 'border-b-2 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700' }}">
+                            <svg class="mr-2 hero-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Activity Log
+                        </a>
+                        {% if session.user_role == 'admin' %}
+                        <a href="{{ url_for('manage_users') }}" class="inline-flex items-center px-1 pt-1 text-sm font-medium {{ 'border-b-2 border-blue-400 text-blue-400' if request.endpoint in ['manage_users', 'add_user'] else 'border-b-2 border-transparent text-gray-300 hover:border-gray-400 hover:text-white' }}">
+                            <svg class="mr-2 hero-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                            </svg>
+                            Users
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="relative ml-3">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-sm font-medium text-gray-700">{{ session.username }}</span>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ 'bg-red-100 text-red-800' if session.user_role == 'admin' else 'bg-blue-100 text-blue-800' if session.user_role == 'editor' else 'bg-gray-100 text-gray-800' }}">
+                                    {{ session.user_role|title }}
+                                </span>
+                                <div class="relative">
+                                    <button type="button" class="flex text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-audit-blue" onclick="toggleDropdown()">
+                                        <svg class="hero-icon text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                        </svg>
+                                    </button>
+                                    <div id="user-dropdown" class="hidden absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-gray-700 ring-1 ring-black ring-opacity-5 z-50">
+                                        <a href="{{ url_for('settings') }}" class="flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white">
+                                            <svg class="mr-3 hero-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            </svg>
+                                            Settings
+                                        </a>
+                                        <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white">
+                                            <svg class="mr-3 hero-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                                            </svg>
+                                            Sign out
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile menu -->
+        <div class="sm:hidden" id="mobile-menu">
+            <div class="pt-2 pb-3 space-y-1 bg-gray-700">
+                <a href="{{ url_for('index') }}" class="block pl-3 pr-4 py-2 text-base font-medium {{ 'bg-blue-600 text-white border-blue-600' if request.endpoint == 'index' else 'text-gray-300 hover:text-white hover:bg-gray-600' }}">Dashboard</a>
+                <a href="{{ url_for('findings') }}" class="block pl-3 pr-4 py-2 text-base font-medium {{ 'bg-blue-600 text-white border-blue-600' if request.endpoint == 'findings' else 'text-gray-300 hover:text-white hover:bg-gray-600' }}">Findings</a>
+                <a href="{{ url_for('add_finding') }}" class="block pl-3 pr-4 py-2 text-base font-medium {{ 'bg-blue-600 text-white border-blue-600' if request.endpoint == 'add_finding' else 'text-gray-300 hover:text-white hover:bg-gray-600' }}">Add Finding</a>
+                <a href="{{ url_for('activity_logs') }}" class="block pl-3 pr-4 py-2 text-base font-medium {{ 'bg-blue-600 text-white border-blue-600' if request.endpoint == 'activity_logs' else 'text-gray-300 hover:text-white hover:bg-gray-600' }}">Activity Log</a>
+                {% if session.user_role == 'admin' %}
+                <a href="{{ url_for('manage_users') }}" class="block pl-3 pr-4 py-2 text-base font-medium {{ 'bg-blue-600 text-white border-blue-600' if request.endpoint in ['manage_users', 'add_user'] else 'text-gray-300 hover:text-white hover:bg-gray-600' }}">Users</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="fixed top-4 right-4 z-50 space-y-2">
+                {% for category, message in messages %}
+                    <div class="flex items-center p-4 rounded-md shadow-lg {{ 'bg-red-900 border-l-4 border-red-600 text-red-200' if category == 'error' else 'bg-yellow-900 border-l-4 border-yellow-600 text-yellow-200' if category == 'warning' else 'bg-green-900 border-l-4 border-green-600 text-green-200' if category == 'success' else 'bg-blue-900 border-l-4 border-blue-600 text-blue-200' }}" role="alert">
+                        <div class="flex-shrink-0">
+                            {% if category == 'error' %}
+                                <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                                </svg>
+                            {% elif category == 'warning' %}
+                                <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                </svg>
+                            {% elif category == 'success' %}
+                                <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                            {% else %}
+                                <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                </svg>
+                            {% endif %}
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm {{ 'text-red-700' if category == 'error' else 'text-yellow-700' if category == 'warning' else 'text-green-700' if category == 'success' else 'text-blue-700' }}">
+                                {{ message }}
+                            </p>
+                        </div>
+                        <button type="button" class="ml-auto -mx-1.5 -my-1.5 rounded-lg p-1.5 inline-flex h-8 w-8 {{ 'text-red-500 hover:bg-red-100' if category == 'error' else 'text-yellow-500 hover:bg-yellow-100' if category == 'warning' else 'text-green-500 hover:bg-green-100' if category == 'success' else 'text-blue-500 hover:bg-blue-100' }}" onclick="this.parentElement.style.display='none'">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- JavaScript -->
+    <script>
+        function toggleDropdown() {
+            const dropdown = document.getElementById('user-dropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('user-dropdown');
+            const button = event.target.closest('button');
+            if (!button && !dropdown.contains(event.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+
+        // Auto-hide flash messages after 5 seconds
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('[role="alert"]');
+            alerts.forEach(function(alert) {
+                alert.style.transition = 'opacity 0.5s ease-out';
+                alert.style.opacity = '0';
+                setTimeout(function() {
+                    alert.remove();
+                }, 500);
+            });
+        }, 5000);
+    </script>
+</body>
+</html>

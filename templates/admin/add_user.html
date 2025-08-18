@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block title %}Add User - Internal Audit Tracker{% endblock %}
+
+{% block content %}
+<div class="min-h-full">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center">
+                <a href="{{ url_for('manage_users') }}" class="mr-4 text-gray-400 hover:text-gray-600">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Add New User</h1>
+                    <p class="mt-1 text-sm text-gray-500">
+                        Create a new user account with temporary password.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+            <div class="px-4 py-5 sm:p-6">
+                <form method="POST" class="space-y-6">
+                    <!-- Username -->
+                    <div>
+                        <label for="username" class="block text-sm font-medium text-gray-700">
+                            Username *
+                        </label>
+                        <div class="mt-1 relative rounded-md shadow-sm">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                            </div>
+                            <input id="username" name="username" type="text" required 
+                                   class="pl-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                   placeholder="Enter unique username"
+                                   pattern="[a-zA-Z0-9._-]+"
+                                   title="Username can only contain letters, numbers, dots, underscores, and hyphens">
+                        </div>
+                        <p class="mt-2 text-sm text-gray-500">
+                            Username must be unique and can only contain letters, numbers, dots, underscores, and hyphens.
+                        </p>
+                    </div>
+
+                    <!-- Role -->
+                    <div>
+                        <label for="role" class="block text-sm font-medium text-gray-700">
+                            Role *
+                        </label>
+                        <div class="mt-1">
+                            <select id="role" name="role" required onchange="updatePasswordRequirements()"
+                                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <option value="">Select a role</option>
+                                <option value="viewer">Viewer</option>
+                                <option value="contributor">Contributor</option>
+                                <option value="content_manager">Content Manager</option>
+                                <option value="administrator">Administrator</option>
+                            </select>
+                        </div>
+                        <div class="mt-2 text-sm text-gray-500">
+                            <div class="space-y-1">
+                                <p><strong>Viewer:</strong> View-only access, cannot add/edit findings or access management features</p>
+                                <p><strong>Contributor:</strong> Add and edit findings, limited content creation permissions</p>
+                                <p><strong>Content Manager:</strong> Add/edit/delete findings, access to activity logs, content management</p>
+                                <p><strong>Administrator:</strong> Full access to everything - user management, system settings, all features</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Temporary Password -->
+                    <div>
+                        <label for="temp_password" class="block text-sm font-medium text-gray-700">
+                            Temporary Password *
+                        </label>
+                        <div class="mt-1 relative rounded-md shadow-sm">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                </svg>
+                            </div>
+                            <input id="temp_password" name="temp_password" type="password" required 
+                                   class="pl-10 pr-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                   placeholder="Enter temporary password">
+                            <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                <button type="button" onclick="togglePasswordVisibility()" class="text-gray-400 hover:text-gray-600">
+                                    <svg class="h-5 w-5" id="eye-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="mt-2 text-sm text-gray-500">
+                            User will be required to change this password on first login.
+                        </p>
+                    </div>
+
+                    <!-- Password Requirements Display -->
+                    <div id="password-requirements" class="hidden">
+                        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <h4 class="text-sm font-medium text-blue-800">Password Requirements</h4>
+                                    <div class="mt-2 text-sm text-blue-700">
+                                        <p id="requirements-text">Select a role to see password requirements.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Password Generator -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-900">Generate Secure Password</h4>
+                                <p class="text-sm text-gray-500">Generate a random password that meets the requirements</p>
+                            </div>
+                            <button type="button" onclick="generatePassword()" 
+                                    class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                                Generate
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="flex justify-end space-x-3">
+                        <a href="{{ url_for('manage_users') }}" 
+                           class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <svg class="mr-2 -ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                            Cancel
+                        </a>
+                        <button type="submit" 
+                                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <svg class="mr-2 -ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            Create User
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Security Notice -->
+        <div class="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h4 class="text-sm font-medium text-yellow-800">Security Notice</h4>
+                    <div class="mt-2 text-sm text-yellow-700">
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>The temporary password should be communicated securely to the user</li>
+                            <li>Users will be forced to change their password on first login</li>
+                            <li>Consider the principle of least privilege when assigning roles</li>
+                            <li>User creation and management activities are logged for audit purposes</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Password requirements by role
+const passwordRequirements = {
+    admin: {
+        min_length: 12,
+        require_uppercase: true,
+        require_lowercase: true,
+        require_numbers: true,
+        require_special: false,
+        description: 'Minimum 12 characters with uppercase, lowercase, and numbers'
+    },
+    editor: {
+        min_length: 12,
+        require_uppercase: true,
+        require_lowercase: true,
+        require_numbers: true,
+        require_special: true,
+        description: 'Minimum 12 characters with uppercase, lowercase, numbers, and special characters'
+    },
+    viewer: {
+        min_length: 12,
+        require_uppercase: true,
+        require_lowercase: true,
+        require_numbers: true,
+        require_special: true,
+        description: 'Minimum 12 characters with uppercase, lowercase, numbers, and special characters'
+    }
+};
+
+function updatePasswordRequirements() {
+    const role = document.getElementById('role').value;
+    const requirementsDiv = document.getElementById('password-requirements');
+    const requirementsText = document.getElementById('requirements-text');
+    
+    if (role && passwordRequirements[role]) {
+        requirementsDiv.classList.remove('hidden');
+        requirementsText.textContent = passwordRequirements[role].description;
+    } else {
+        requirementsDiv.classList.add('hidden');
+    }
+}
+
+function togglePasswordVisibility() {
+    const passwordField = document.getElementById('temp_password');
+    const eyeIcon = document.getElementById('eye-icon');
+    
+    if (passwordField.type === 'password') {
+        passwordField.type = 'text';
+        eyeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>';
+    } else {
+        passwordField.type = 'password';
+        eyeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>';
+    }
+}
+
+function generatePassword() {
+    const role = document.getElementById('role').value;
+    if (!role) {
+        alert('Please select a role first to generate an appropriate password.');
+        return;
+    }
+    
+    const requirements = passwordRequirements[role];
+    const length = Math.max(requirements.min_length, 12);
+    
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numbers = '0123456789';
+    const special = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+    
+    let chars = lowercase;  // Always include lowercase
+    let password = '';
+    
+    // Ensure required character types are included
+    if (requirements.require_uppercase) {
+        chars += uppercase;
+        password += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
+    }
+    if (requirements.require_lowercase) {
+        password += lowercase.charAt(Math.floor(Math.random() * lowercase.length));
+    }
+    if (requirements.require_numbers) {
+        chars += numbers;
+        password += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    }
+    if (requirements.require_special) {
+        chars += special;
+        password += special.charAt(Math.floor(Math.random() * special.length));
+    }
+    
+    // Fill remaining length with random characters
+    for (let i = password.length; i < length; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    // Shuffle the password to avoid predictable patterns
+    password = password.split('').sort(() => 0.5 - Math.random()).join('');
+    
+    document.getElementById('temp_password').value = password;
+}
+
+// Real-time password validation
+document.getElementById('temp_password').addEventListener('input', function() {
+    const password = this.value;
+    const role = document.getElementById('role').value;
+    
+    if (!role || !password) return;
+    
+    const requirements = passwordRequirements[role];
+    const errors = [];
+    
+    if (password.length < requirements.min_length) {
+        errors.push(`Password must be at least ${requirements.min_length} characters long`);
+    }
+    
+    if (requirements.require_uppercase && !/[A-Z]/.test(password)) {
+        errors.push('Password must contain at least one uppercase letter');
+    }
+    
+    if (requirements.require_lowercase && !/[a-z]/.test(password)) {
+        errors.push('Password must contain at least one lowercase letter');
+    }
+    
+    if (requirements.require_numbers && !/\d/.test(password)) {
+        errors.push('Password must contain at least one number');
+    }
+    
+    if (requirements.require_special && !/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password)) {
+        errors.push('Password must contain at least one special character');
+    }
+    
+    // Visual feedback
+    if (errors.length === 0) {
+        this.classList.remove('border-red-300');
+        this.classList.add('border-green-300');
+    } else {
+        this.classList.remove('border-green-300');
+        this.classList.add('border-red-300');
+    }
+});
+</script>
+{% endblock %}
