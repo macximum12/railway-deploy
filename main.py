@@ -7,11 +7,12 @@ import re
 import uuid
 from functools import wraps
 import time
+import os
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-change-in-production'  # Change this in production!
+app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')  # Use environment variable in production
 app.permanent_session_lifetime = timedelta(minutes=5)  # Session expires in 5 minutes
 
 # Enhanced security configuration
@@ -1495,9 +1496,17 @@ def inject_template_vars():
     return context
 
 if __name__ == '__main__':
+    import os
     init_db()
+    
+    # Get port from environment variable (for cloud deployments) or default to 5000
+    port = int(os.environ.get('PORT', 5000))
+    host = os.environ.get('HOST', '0.0.0.0')  # Bind to all interfaces for cloud deployment
+    debug = os.environ.get('FLASK_ENV') != 'production'
+    
     print("🚀 Starting Internal Audit Tracker...")
     print("📊 Database initialized successfully!")
-    print("🌐 Server running at: http://127.0.0.1:5000")
+    print(f"🌐 Server running at: http://{host}:{port}")
     print("Press CTRL+C to stop the server")
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    
+    app.run(debug=debug, host=host, port=port)
