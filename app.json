@@ -1,0 +1,35 @@
+{
+  "name": "Internal Audit Tracker",
+  "description": "A comprehensive web-based application for managing internal audit findings with role-based access control",
+  "repository": "https://github.com/macximum12/audit-logger",
+  "logo": "https://via.placeholder.com/200x200/4f46e5/ffffff?text=IAT",
+  "keywords": ["flask", "audit", "tracking", "compliance", "python", "web-app"],
+  "website": "https://github.com/macximum12/audit-logger",
+  "success_url": "/",
+  "env": {
+    "SECRET_KEY": {
+      "description": "A secret key for verifying the integrity of signed cookies",
+      "generator": "secret"
+    },
+    "FLASK_ENV": {
+      "description": "Flask environment mode",
+      "value": "production"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "hobby"
+    }
+  },
+  "image": "heroku/python",
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "addons": [],
+  "scripts": {
+    "postdeploy": "echo 'Internal Audit Tracker deployed successfully! Default login: admin/admin123'"
+  }
+}
