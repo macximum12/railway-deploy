@@ -107,6 +107,11 @@ audit-logger/
 ├── DEPLOYMENT.md          # This file
 ├── .gitignore            # Git ignore rules
 ├── Procfile              # For Heroku (if needed)
+├── static/               # Static assets
+│   ├── css/
+│   │   └── style.css     # Custom styles
+│   └── js/
+│       └── app.js        # JavaScript functionality
 ├── templates/            # HTML templates
 │   ├── base.html
 │   ├── index.html
@@ -186,25 +191,43 @@ MAX_LOGIN_ATTEMPTS = 5
 
 #### Common Issues
 
-**1. Database doesn't exist:**
+**1. ModuleNotFoundError: No module named 'flask_limiter':**
+```bash
+# Ensure you have the latest requirements.txt and install all dependencies
+pip install -r requirements.txt
+# Or install flask-limiter specifically:
+pip install Flask-Limiter==3.5.0
+```
+
+**2. Database doesn't exist:**
+**2. Database doesn't exist:**
 ```bash
 # The database will auto-create on first run
 # If issues persist, delete audit_findings.db and restart
 ```
 
-**2. Admin lockout:**
+**3. Static files not loading:**
+```bash
+# Ensure static/ folder exists with css/ and js/ subdirectories
+# The application includes custom CSS and JavaScript files
+# Verify file permissions and web server configuration
+```
+
+**4. Admin lockout:**
+**4. Admin lockout:**
 ```bash
 # Admin user is exempt from first-login password change
 # Use admin/admin123 to regain access
 ```
 
-**3. Import errors:**
+**5. Import errors:**
+**5. Import errors:**
 ```bash
 # Ensure Excel file has correct column headers
 # Check file permissions and format
 ```
 
-**4. Permission denied errors:**
+**6. Permission denied errors:**
 ```bash
 # Check file permissions on database
 chmod 666 audit_findings.db  # Linux/Mac
