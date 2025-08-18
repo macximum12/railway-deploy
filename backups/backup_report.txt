@@ -1,0 +1,13 @@
+BACKUP SYSTEM REPORT
+Generated: 2025-08-16 10:36:10
+==================================================
+
+Retention Policy: 365 days
+Total Backups: 2
+Total Size: 0.00 GB
+Oldest Backup: 2025-08-16
+Newest Backup: 2025-08-16
+
+Backup Directory: C:\Users\Administrator\Downloads\IA\Railway-Deploy\backups
+Application Directory: C:\Users\Administrator\Downloads\IA\Railway-Deploy
+Database File: audit_findings.db
